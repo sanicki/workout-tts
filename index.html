@@ -549,6 +549,40 @@
           <span>Haptic Feedback (Vibration)</span>
         </label>
       </div>
+
+      <div class="card">
+        <div class="card-title">Countdown & Time Announcements</div>
+
+        <div class="form-group">
+          <label for="countdown-threshold-select">Countdown Threshold</label>
+          <select id="countdown-threshold-select">
+            <option value="disabled">Disabled</option>
+            <option value="10">10 seconds</option>
+            <option value="9">9 seconds</option>
+            <option value="8">8 seconds</option>
+            <option value="7">7 seconds</option>
+            <option value="6">6 seconds</option>
+            <option value="5">5 seconds</option>
+            <option value="4">4 seconds</option>
+            <option value="3">3 seconds</option>
+            <option value="2">2 seconds</option>
+            <option value="1">1 second</option>
+          </select>
+          <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Announces countdown TTS in final X seconds (e.g., "3, 2, 1")</p>
+        </div>
+
+        <div class="form-group">
+          <label for="time-remaining-select">For time-based exercises, announce remaining time:</label>
+          <select id="time-remaining-select">
+            <option value="anytime">Anytime</option>
+            <option value="25">After 25% complete</option>
+            <option value="50">After 50% complete</option>
+            <option value="75">After 75% complete</option>
+            <option value="never">Never</option>
+          </select>
+          <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Announces remaining time at intervals (15s, 30s, 1m, 2m, 5m)</p>
+        </div>
+      </div>
     </section>
 
     <!-- TAB 3: Backup & Restore -->
@@ -632,6 +666,10 @@
         </div>
       </div>
 
+      <div id="rep-tip" style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-muted); display: none;">
+        💡 Tip: Set Total Reps to 1 to create a timed exercise.
+      </div>
+
       <div class="row mt-1">
         <button id="btn-cancel-block" class="btn btn-secondary">Cancel</button>
         <button id="btn-save-block" class="btn btn-primary">Save Block</button>
@@ -665,7 +703,9 @@
       pitch: 1.0,
       volume: 1.0,
       ticks: true,
-      haptics: true
+      haptics: true,
+      countdownThreshold: 3,
+      timeRemainingThreshold: 50
     };
 
     let state = {
@@ -881,6 +921,9 @@
       }
 
       setupWorkPhase(block) {
+        // Single-rep blocks (reps === 1) represent timed exercises (e.g., "30 seconds of running")
+        // Multi-rep blocks (reps > 1) represent counted exercises where each rep takes block.pace seconds
+        // accTime is re-added per rep in tick() for multi-rep blocks to prevent timing drift
         this.stopLoop();
         this.subState = 'WORK';
         this.currentRep = 1;
@@ -909,6 +952,9 @@
       }
 
       setupStandAloneRestPhase(block) {
+        // Rest blocks serve dual purpose:
+        // - Without instructions: actual rest/recovery period (announces duration)
+        // - With instructions: setup/preparation block for next exercise (announces only instructions)
         this.stopLoop();
         this.subState = 'REST';
         this.accTime = block.duration;
@@ -947,6 +993,32 @@
         }
       }
 
+      checkLongExerciseAnnouncement(block, currentSec, prevSec) {
+        const threshold = state.settings.timeRemainingThreshold;
+        if (threshold === null) return; // Never announce
+
+        const exerciseDuration = block.pace;
+        const timeDiffThreshold = (exerciseDuration * (1 - threshold / 100));
+        const timeRemaining = this.accTime;
+
+        // Only announce if we're past the threshold
+        if (timeRemaining >= timeDiffThreshold) return;
+
+        // Check if we've crossed an announcement interval
+        const intervals = [15, 30, 60, 120, 300]; // 15s, 30s, 1m, 2m, 5m
+
+        for (const interval of intervals) {
+          // If we just crossed this interval boundary
+          if (prevSec > interval && currentSec <= interval && currentSec > 0) {
+            const phrasings = ['remaining', 'to go', 'left'];
+            const randomPhrase = phrasings[Math.floor(Math.random() * phrasings.length)];
+            const formattedTime = formatDurationSpeech(interval);
+            audioEngine.speak(`${formattedTime} ${randomPhrase}`, false);
+            break; // Only announce once per tick
+          }
+        }
+      }
+
       tick() {
         if (this.isPaused) return;
 
@@ -963,7 +1035,8 @@
         if (this.subState === 'REST') {
           if (currentSec !== prevSec && currentSec > 0) {
             ui.updateCounterDisplay(formatDisplayTime(this.accTime));
-            if (currentSec <= 3) {
+            const countdownThreshold = state.settings.countdownThreshold;
+            if (countdownThreshold !== null && currentSec <= countdownThreshold) {
               audioEngine.speak(`${currentSec}`);
               audioEngine.playTick();
               triggerHaptic(40);
@@ -978,11 +1051,14 @@
           if (block.reps === 1) {
             if (currentSec !== prevSec && currentSec > 0) {
               ui.updateCounterDisplay(formatDisplayTime(this.accTime));
-              if (currentSec <= 3) {
+              const countdownThreshold = state.settings.countdownThreshold;
+              if (countdownThreshold !== null && currentSec <= countdownThreshold) {
                 audioEngine.speak(`${currentSec}`);
                 audioEngine.playTick();
                 triggerHaptic(40);
               }
+              // Check for long-exercise time remaining announcements
+              this.checkLongExerciseAnnouncement(block, currentSec, prevSec);
             }
 
             if (this.accTime <= 0) {
@@ -1166,6 +1242,16 @@
           saveSettings();
         });
 
+        document.getElementById('countdown-threshold-select').addEventListener('change', (e) => {
+          state.settings.countdownThreshold = e.target.value === 'disabled' ? null : parseInt(e.target.value);
+          saveSettings();
+        });
+
+        document.getElementById('time-remaining-select').addEventListener('change', (e) => {
+          state.settings.timeRemainingThreshold = e.target.value === 'anytime' ? 0 : (e.target.value === 'never' ? null : parseInt(e.target.value));
+          saveSettings();
+        });
+
         document.getElementById('btn-test-voice').addEventListener('click', () => {
           audioEngine.speak("Workout TTS is ready.");
         });
@@ -1196,6 +1282,14 @@
         document.getElementById('vol-val').textContent = Math.round(state.settings.volume * 100);
         document.getElementById('chk-ticks').checked = state.settings.ticks;
         document.getElementById('chk-haptics').checked = state.settings.haptics;
+        document.getElementById('countdown-threshold-select').value = state.settings.countdownThreshold === null ? 'disabled' : state.settings.countdownThreshold;
+        if (state.settings.timeRemainingThreshold === null) {
+          document.getElementById('time-remaining-select').value = 'never';
+        } else if (state.settings.timeRemainingThreshold === 0) {
+          document.getElementById('time-remaining-select').value = 'anytime';
+        } else {
+          document.getElementById('time-remaining-select').value = state.settings.timeRemainingThreshold;
+        }
       },
 
       renderRoutinesList() {
@@ -1272,6 +1366,10 @@
       },
 
       cancelRoutineEdit() {
+        if (state.editingRoutineDraft && state.editingRoutineDraft.blocks.length === 0) {
+          const confirm = window.confirm('This routine has no blocks. Are you sure you want to discard it?');
+          if (!confirm) return;
+        }
         this.closeEditor();
       },
 
@@ -1406,10 +1504,12 @@
         if (type === 'rep') {
           this.repFields.classList.remove('hidden');
           this.restFields.classList.add('hidden');
+          document.getElementById('rep-tip').style.display = 'block';
           this.blockTitleInput.placeholder = 'e.g., Push-ups';
         } else {
           this.repFields.classList.add('hidden');
           this.restFields.classList.remove('hidden');
+          document.getElementById('rep-tip').style.display = 'none';
           this.blockTitleInput.placeholder = 'e.g., Cooldown';
         }
       },
@@ -1453,8 +1553,20 @@
         };
 
         if (type === 'rep') {
-          blockData.reps = Math.max(1, parseInt(this.blockRepsInput.value, 10) || 1);
-          blockData.pace = Math.max(0.5, parseFloat(this.blockPaceInput.value) || 1.0);
+          const reps = parseInt(this.blockRepsInput.value, 10);
+          const pace = parseFloat(this.blockPaceInput.value);
+
+          if (reps < 1) {
+            alert('Total Reps must be at least 1.');
+            return;
+          }
+          if (pace <= 0) {
+            alert('Pace must be greater than 0 seconds.');
+            return;
+          }
+
+          blockData.reps = Math.max(1, reps || 1);
+          blockData.pace = Math.max(0.5, pace || 1.0);
         } else {
           blockData.duration = Math.max(1, parseInt(this.blockDurationInput.value, 10) || 1);
           blockData.instructions = this.blockInstructionsInput.value.trim();
