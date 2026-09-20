@@ -1664,7 +1664,7 @@
       },
 
       exportBackup() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+        const dataStr = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
         const dlAnchorElem = document.createElement('a');
         dlAnchorElem.setAttribute("href", dataStr);
         dlAnchorElem.setAttribute("download", `workout_tts_backup_${new Date().toISOString().slice(0,10)}.json`);
@@ -1743,7 +1743,7 @@
           routines: selectedRoutines
         };
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+        const dataStr = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
         const dlAnchorElem = document.createElement('a');
         dlAnchorElem.setAttribute("href", dataStr);
         dlAnchorElem.setAttribute("download", `workout_tts_routines_${new Date().toISOString().slice(0,10)}.json`);
