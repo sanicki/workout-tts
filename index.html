@@ -588,16 +588,29 @@
     <!-- TAB 3: Backup & Restore -->
     <section id="sec-backup" class="tab-content">
       <div class="card">
-        <div class="card-title">Backup Data</div>
+        <div class="card-title">Backup ALL Data</div>
         <p style="font-size:0.85rem; color: var(--text-muted);">Export your routines and configurations to a local JSON file for safekeeping or transfer to another browser.</p>
         <button id="btn-export-json" class="btn btn-primary">Export JSON Data</button>
       </div>
 
       <div class="card">
-        <div class="card-title">Restore Data</div>
+        <div class="card-title">Restore ALL Data</div>
         <p style="font-size:0.85rem; color: var(--text-muted);">Import routines from a previously exported JSON backup file. This will merge or overwrite current saved routines.</p>
         <input type="file" id="file-import-json" accept=".json" style="display: none;">
         <button id="btn-import-trigger" class="btn btn-secondary">Select JSON File to Restore</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Export Routine(s)</div>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Export selected routines and blocks to a local JSON file. Perfect for sharing.</p>
+        <button id="btn-export-routines" class="btn btn-primary">Select Routines to Export</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Import Routine(s)</div>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Import shared routines without losing your other saved routines. (Duplicate routines and blocks will be overwritten.)</p>
+        <input type="file" id="file-import-routines" accept=".json" style="display: none;">
+        <button id="btn-import-routines-trigger" class="btn btn-secondary">Select JSON File to Import</button>
       </div>
     </section>
 
@@ -621,6 +634,21 @@
       <button id="btn-pause" class="btn btn-secondary">Pause</button>
       <button id="btn-skip" class="btn btn-secondary">Skip</button>
       <button id="btn-stop" class="btn btn-danger">Stop</button>
+    </div>
+  </div>
+
+  <!-- Modal for Selecting Routines to Export -->
+  <div id="export-routines-modal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <h3>Select Routines to Export</h3>
+      <p style="font-size:0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Choose which routines you want to export:</p>
+      <div id="export-routines-list" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+        <!-- Routines checkboxes will be populated here -->
+      </div>
+      <div class="row mt-1">
+        <button id="btn-cancel-export" class="btn btn-secondary">Cancel</button>
+        <button id="btn-confirm-export" class="btn btn-primary">Export Selected</button>
+      </div>
     </div>
   </div>
 
@@ -1260,6 +1288,15 @@
         document.getElementById('btn-export-json').addEventListener('click', () => this.exportBackup());
         document.getElementById('btn-import-trigger').addEventListener('click', () => document.getElementById('file-import-json').click());
         document.getElementById('file-import-json').addEventListener('change', (e) => this.importBackup(e));
+
+        document.getElementById('btn-export-routines').addEventListener('click', () => this.showExportRoutinesDialog());
+        document.getElementById('btn-import-routines-trigger').addEventListener('click', () => document.getElementById('file-import-routines').click());
+        document.getElementById('file-import-routines').addEventListener('change', (e) => this.importRoutines(e));
+
+        document.getElementById('btn-cancel-export').addEventListener('click', () => {
+          document.getElementById('export-routines-modal').hidden = true;
+        });
+        document.getElementById('btn-confirm-export').addEventListener('click', () => this.exportRoutines());
       },
 
       bindSlider(elementId, labelId, settingKey) {
@@ -1654,6 +1691,110 @@
             alert('Backup data successfully restored!');
           } catch (err) {
             alert('Invalid backup file format.');
+          }
+        };
+        if (event.target.files[0]) {
+          fileReader.readAsText(event.target.files[0]);
+        }
+      },
+
+      showExportRoutinesDialog() {
+        const modal = document.getElementById('export-routines-modal');
+        const listContainer = document.getElementById('export-routines-list');
+        listContainer.innerHTML = '';
+
+        state.routines.forEach(routine => {
+          const label = document.createElement('label');
+          label.style.display = 'flex';
+          label.style.alignItems = 'center';
+          label.style.padding = '0.5rem';
+          label.style.borderBottom = '1px solid var(--border-color)';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = routine.id;
+          checkbox.style.marginRight = '0.5rem';
+          checkbox.checked = true;
+
+          const text = document.createElement('span');
+          text.textContent = routine.name;
+
+          label.appendChild(checkbox);
+          label.appendChild(text);
+          listContainer.appendChild(label);
+        });
+
+        modal.hidden = false;
+      },
+
+      exportRoutines() {
+        const modal = document.getElementById('export-routines-modal');
+        const checkboxes = modal.querySelectorAll('input[type="checkbox"]:checked');
+
+        if (checkboxes.length === 0) {
+          alert('Please select at least one routine to export.');
+          return;
+        }
+
+        const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+        const selectedRoutines = state.routines.filter(r => selectedIds.includes(r.id));
+
+        const exportData = {
+          routines: selectedRoutines
+        };
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `workout_tts_routines_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(dlAnchorElem);
+        dlAnchorElem.click();
+        dlAnchorElem.remove();
+
+        modal.hidden = true;
+      },
+
+      importRoutines(event) {
+        const fileReader = new FileReader();
+        fileReader.onload = (e) => {
+          try {
+            const importedData = JSON.parse(e.target.result);
+            if (!importedData.routines || !Array.isArray(importedData.routines)) {
+              alert('Invalid routine file format.');
+              return;
+            }
+
+            // Merge imported routines with existing ones (duplicates overwrite)
+            importedData.routines.forEach(importedRoutine => {
+              const existingIndex = state.routines.findIndex(r => r.id === importedRoutine.id);
+              if (existingIndex !== -1) {
+                state.routines[existingIndex] = importedRoutine;
+              } else {
+                state.routines.push(importedRoutine);
+              }
+            });
+
+            // Clean up orphaned blocks - blocks that are referenced but don't exist
+            const allBlockIds = new Set();
+            state.routines.forEach(routine => {
+              routine.blocks.forEach(block => {
+                allBlockIds.add(block.id);
+              });
+            });
+
+            // Remove orphaned blocks (none in this structure since blocks are inline, but keep for data integrity)
+            state.routines.forEach(routine => {
+              routine.blocks = routine.blocks.filter(block => {
+                // Keep blocks that have valid data (basic validation)
+                return block.id && block.type && block.title;
+              });
+            });
+
+            saveRoutines();
+            this.renderRoutinesList();
+            alert('Routines successfully imported!');
+          } catch (err) {
+            alert('Invalid routine file format: ' + err.message);
           }
         };
         if (event.target.files[0]) {
