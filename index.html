@@ -844,7 +844,54 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     }
 
     /* =========================================================================
-       2. AUDIO ENGINE (TTS & Web Audio API Synthesizer)
+       2. NAVIGATION GUARD (Back Button / Gesture Interception)
+       ========================================================================= */
+    // Overlays (routine editor, block modal, export modal, player) push a history
+    // entry when opened. A device/browser back triggers popstate instead of
+    // silently closing the overlay or exiting the app; the top guard's onBack()
+    // decides whether to show a contextual warning before actually closing.
+    const backGuardStack = [];
+    let suppressedPopstates = 0;
+
+    function pushBackGuard(onBack) {
+      backGuardStack.push(onBack);
+      history.pushState({ guardDepth: backGuardStack.length }, '');
+    }
+
+    // Call when an overlay is closed via an explicit in-app action (Save/Cancel/Stop
+    // button, or a confirmed back-gesture) so the history stack stays in sync.
+    function closeTopBackGuard() {
+      if (backGuardStack.length === 0) return;
+      backGuardStack.pop();
+      suppressedPopstates++;
+      history.back();
+    }
+
+    window.addEventListener('popstate', () => {
+      if (suppressedPopstates > 0) {
+        suppressedPopstates--;
+        return;
+      }
+
+      const onBack = backGuardStack[backGuardStack.length - 1];
+      if (onBack) {
+        // Re-arm this guard's history entry; onBack() decides whether to keep the
+        // overlay open (do nothing) or close it (which pops the guard for real).
+        history.pushState({ guardDepth: backGuardStack.length }, '');
+        onBack();
+      } else if (confirm('Exit Workout TTS?')) {
+        history.back();
+      } else {
+        history.pushState({ guardDepth: 0 }, '');
+      }
+    });
+
+    // Prime one buffer entry so the very first back press is caught instead of
+    // exiting the app immediately.
+    history.pushState({ guardDepth: 0 }, '');
+
+    /* =========================================================================
+       3. AUDIO ENGINE (TTS & Web Audio API Synthesizer)
        ========================================================================= */
     class AudioEngine {
       constructor() {
@@ -955,7 +1002,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     }
 
     /* =========================================================================
-       3. EXECUTION ENGINE (State Machine & Timer Logic)
+       4. EXECUTION ENGINE (State Machine & Timer Logic)
        ========================================================================= */
     class ExecutionEngine {
       constructor() {
@@ -1217,7 +1264,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     const executionEngine = new ExecutionEngine();
 
     /* =========================================================================
-       4. UI HANDLER (DOM Interactions & Rendering)
+       5. UI HANDLER (DOM Interactions & Rendering)
        ========================================================================= */
     const ui = {
       // Navigation Tabs
@@ -1362,9 +1409,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         document.getElementById('btn-copy-llm-prompt').addEventListener('click', () => this.copyLLMPrompt());
         document.getElementById('btn-paste-llm-json').addEventListener('click', () => this.pasteLLMRoutineJSON());
 
-        document.getElementById('btn-cancel-export').addEventListener('click', () => {
-          document.getElementById('export-routines-modal').hidden = true;
-        });
+        document.getElementById('btn-cancel-export').addEventListener('click', () => this.closeExportModal());
         document.getElementById('btn-confirm-export').addEventListener('click', () => this.exportRoutines());
       },
 
@@ -1433,6 +1478,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         this.routineListView.classList.add('hidden');
         this.routineEditorView.classList.remove('hidden');
+        pushBackGuard(() => this.handleEditorBack());
       },
 
       editRoutine(id) {
@@ -1447,6 +1493,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         this.routineListView.classList.add('hidden');
         this.routineEditorView.classList.remove('hidden');
+        pushBackGuard(() => this.handleEditorBack());
       },
 
       saveRoutine() {
@@ -1479,12 +1526,23 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.closeEditor();
       },
 
+      handleEditorBack() {
+        const draft = state.editingRoutineDraft;
+        const message = (draft && draft.blocks.length === 0)
+          ? 'This routine has no blocks. Discard it?'
+          : 'Discard changes to this routine?';
+        if (confirm(message)) {
+          this.closeEditor();
+        }
+      },
+
       closeEditor() {
         state.currentEditingRoutineId = null;
         state.editingRoutineDraft = null;
         this.routineEditorView.classList.add('hidden');
         this.routineListView.classList.remove('hidden');
         this.renderRoutinesList();
+        closeTopBackGuard();
       },
 
       duplicateRoutine(id) {
@@ -1604,6 +1662,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         this.toggleBlockModalFields(type);
         this.blockModal.hidden = false;
+        pushBackGuard(() => this.handleBlockModalBack());
+      },
+
+      handleBlockModalBack() {
+        const message = state.editingBlockId ? 'Discard changes to this block?' : 'Discard this new block?';
+        if (confirm(message)) {
+          this.closeBlockModal();
+        }
       },
 
       toggleBlockModalFields(type) {
@@ -1623,6 +1689,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       closeBlockModal() {
         this.blockModal.hidden = true;
         state.editingBlockId = null;
+        closeTopBackGuard();
       },
 
       duplicateBlock(blockId) {
@@ -1707,8 +1774,21 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       },
 
       showPlayer(visible) {
+        const wasVisible = !this.playerView.hidden;
         this.playerView.hidden = !visible;
         this.setPauseButtonText('Pause');
+
+        if (visible && !wasVisible) {
+          pushBackGuard(() => this.handlePlayerBack());
+        } else if (!visible && wasVisible) {
+          closeTopBackGuard();
+        }
+      },
+
+      handlePlayerBack() {
+        if (confirm('Stop this workout?')) {
+          executionEngine.stop();
+        }
       },
 
       updatePlayerStatus(statusText, badgeClass, title, counter, subText, nextPreview) {
@@ -1794,6 +1874,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         });
 
         modal.hidden = false;
+        pushBackGuard(() => this.closeExportModal());
+      },
+
+      closeExportModal() {
+        document.getElementById('export-routines-modal').hidden = true;
+        closeTopBackGuard();
       },
 
       exportRoutines() {
@@ -1820,7 +1906,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         dlAnchorElem.click();
         dlAnchorElem.remove();
 
-        modal.hidden = true;
+        this.closeExportModal();
       },
 
       importRoutines(event) {
