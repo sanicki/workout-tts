@@ -913,11 +913,11 @@
         this.subState = 'REST';
         this.accTime = block.duration;
         ui.updatePlayerStatus('REST', 'status-rest', block.title, formatDisplayTime(this.accTime), 'Rest Block', this.getNextPreview());
-        
+
         const formattedDuration = formatDurationSpeech(block.duration);
         let phrase = '';
         if (block.instructions && block.instructions.trim()) {
-          phrase = `${block.title} in ${formattedDuration}. ${block.instructions.trim()}`;
+          phrase = `${block.instructions.trim()}`;
         } else {
           phrase = `${block.title}. ${formattedDuration} rest.`;
         }
