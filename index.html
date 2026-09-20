@@ -554,33 +554,21 @@
         <div class="card-title">Countdown & Time Announcements</div>
 
         <div class="form-group">
-          <label for="countdown-threshold-select">Countdown Threshold</label>
-          <select id="countdown-threshold-select">
-            <option value="disabled">Disabled</option>
-            <option value="10">10 seconds</option>
-            <option value="9">9 seconds</option>
-            <option value="8">8 seconds</option>
-            <option value="7">7 seconds</option>
-            <option value="6">6 seconds</option>
-            <option value="5">5 seconds</option>
-            <option value="4">4 seconds</option>
-            <option value="3">3 seconds</option>
-            <option value="2">2 seconds</option>
-            <option value="1">1 second</option>
-          </select>
+          <label for="countdown-threshold-range">Countdown Threshold: <span id="countdown-threshold-val">3 seconds</span></label>
+          <input type="range" id="countdown-threshold-range" min="0" max="10" step="1" value="3">
           <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Announces countdown TTS in final X seconds (e.g., "3, 2, 1")</p>
         </div>
 
         <div class="form-group">
-          <label for="time-remaining-select">For time-based exercises, announce remaining time:</label>
-          <select id="time-remaining-select">
-            <option value="anytime">Anytime</option>
-            <option value="25">After 25% complete</option>
-            <option value="50">After 50% complete</option>
-            <option value="75">After 75% complete</option>
-            <option value="never">Never</option>
-          </select>
-          <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Announces remaining time at intervals (15s, 30s, 1m, 2m, 5m)</p>
+          <label for="time-remaining-range">For time-based exercises, announce remaining time: <span id="time-remaining-val">After 50% complete</span></label>
+          <input type="range" id="time-remaining-range" min="0" max="4" step="1" value="2">
+          <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Sets when remaining-time announcements are allowed to begin</p>
+        </div>
+
+        <div class="form-group">
+          <label for="remaining-interval-range">Remaining Time Announcement Interval: <span id="remaining-interval-val">Every 15 seconds</span></label>
+          <input type="range" id="remaining-interval-range" min="0" max="4" step="1" value="1">
+          <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">How often to repeat the remaining-time announcement during long time-based exercises</p>
         </div>
       </div>
     </section>
@@ -740,8 +728,39 @@
       ticks: true,
       haptics: true,
       countdownThreshold: 3,
-      timeRemainingThreshold: 50
+      timeRemainingThreshold: 50,
+      remainingTimeInterval: 15
     };
+
+    const COUNTDOWN_THRESHOLD_OPTIONS = [
+      { value: null, label: 'Disabled' },
+      { value: 1, label: '1 second' },
+      { value: 2, label: '2 seconds' },
+      { value: 3, label: '3 seconds' },
+      { value: 4, label: '4 seconds' },
+      { value: 5, label: '5 seconds' },
+      { value: 6, label: '6 seconds' },
+      { value: 7, label: '7 seconds' },
+      { value: 8, label: '8 seconds' },
+      { value: 9, label: '9 seconds' },
+      { value: 10, label: '10 seconds' }
+    ];
+
+    const TIME_REMAINING_THRESHOLD_OPTIONS = [
+      { value: 0, label: 'Anytime' },
+      { value: 25, label: 'After 25% complete' },
+      { value: 50, label: 'After 50% complete' },
+      { value: 75, label: 'After 75% complete' },
+      { value: null, label: 'Never' }
+    ];
+
+    const REMAINING_TIME_INTERVAL_OPTIONS = [
+      { value: null, label: 'Disabled' },
+      { value: 15, label: 'Every 15 seconds' },
+      { value: 30, label: 'Every 30 seconds' },
+      { value: 60, label: 'Every 1 minute' },
+      { value: 300, label: 'Every 5 minutes' }
+    ];
 
     let state = {
       routines: JSON.parse(localStorage.getItem(STORAGE_KEY_ROUTINES)) || defaultRoutines,
@@ -1134,9 +1153,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
       }
 
-      checkLongExerciseAnnouncement(block, currentSec, prevSec) {
+      checkLongExerciseAnnouncement(block, currentSec) {
         const threshold = state.settings.timeRemainingThreshold;
         if (threshold === null) return; // Never announce
+
+        const interval = state.settings.remainingTimeInterval;
+        if (interval === null) return; // Announcements disabled
 
         const exerciseDuration = block.pace;
         const timeDiffThreshold = (exerciseDuration * (1 - threshold / 100));
@@ -1145,18 +1167,13 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         // Only announce if we're past the threshold
         if (timeRemaining >= timeDiffThreshold) return;
 
-        // Check if we've crossed an announcement interval
-        const intervals = [15, 30, 60, 120, 300]; // 15s, 30s, 1m, 2m, 5m
-
-        for (const interval of intervals) {
-          // If we just crossed this interval boundary
-          if (prevSec > interval && currentSec <= interval && currentSec > 0) {
-            const phrasings = ['remaining', 'to go', 'left'];
-            const randomPhrase = phrasings[Math.floor(Math.random() * phrasings.length)];
-            const formattedTime = formatDurationSpeech(interval);
-            audioEngine.speak(`${formattedTime} ${randomPhrase}`, false);
-            break; // Only announce once per tick
-          }
+        // Announce every time the displayed remaining time lands on a multiple
+        // of the configured interval (e.g. every 30 seconds).
+        if (currentSec % interval === 0) {
+          const phrasings = ['remaining', 'to go', 'left'];
+          const randomPhrase = phrasings[Math.floor(Math.random() * phrasings.length)];
+          const formattedTime = formatDurationSpeech(currentSec);
+          audioEngine.speak(`${formattedTime} ${randomPhrase}`, false);
         }
       }
 
@@ -1199,7 +1216,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
                 triggerHaptic(40);
               }
               // Check for long-exercise time remaining announcements
-              this.checkLongExerciseAnnouncement(block, currentSec, prevSec);
+              this.checkLongExerciseAnnouncement(block, currentSec);
             }
 
             if (this.accTime <= 0) {
@@ -1414,15 +1431,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           saveSettings();
         });
 
-        document.getElementById('countdown-threshold-select').addEventListener('change', (e) => {
-          state.settings.countdownThreshold = e.target.value === 'disabled' ? null : parseInt(e.target.value);
-          saveSettings();
-        });
-
-        document.getElementById('time-remaining-select').addEventListener('change', (e) => {
-          state.settings.timeRemainingThreshold = e.target.value === 'anytime' ? 0 : (e.target.value === 'never' ? null : parseInt(e.target.value));
-          saveSettings();
-        });
+        this.bindDiscreteSlider('countdown-threshold-range', 'countdown-threshold-val', 'countdownThreshold', COUNTDOWN_THRESHOLD_OPTIONS);
+        this.bindDiscreteSlider('time-remaining-range', 'time-remaining-val', 'timeRemainingThreshold', TIME_REMAINING_THRESHOLD_OPTIONS);
+        this.bindDiscreteSlider('remaining-interval-range', 'remaining-interval-val', 'remainingTimeInterval', REMAINING_TIME_INTERVAL_OPTIONS);
 
         document.getElementById('btn-test-voice').addEventListener('click', () => {
           audioEngine.speak("Workout TTS is ready.");
@@ -1455,6 +1466,24 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         });
       },
 
+      bindDiscreteSlider(elementId, labelId, settingKey, options) {
+        const input = document.getElementById(elementId);
+        const label = document.getElementById(labelId);
+        input.addEventListener('input', (e) => {
+          const option = options[parseInt(e.target.value, 10)];
+          state.settings[settingKey] = option.value;
+          label.textContent = option.label;
+          saveSettings();
+        });
+      },
+
+      loadDiscreteSlider(elementId, labelId, settingKey, options) {
+        const index = options.findIndex(option => option.value === state.settings[settingKey]);
+        const safeIndex = index === -1 ? 0 : index;
+        document.getElementById(elementId).value = safeIndex;
+        document.getElementById(labelId).textContent = options[safeIndex].label;
+      },
+
       loadSettingsUI() {
         document.getElementById('rate-range').value = state.settings.rate;
         document.getElementById('rate-val').textContent = state.settings.rate.toFixed(1);
@@ -1464,14 +1493,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         document.getElementById('vol-val').textContent = Math.round(state.settings.volume * 100);
         document.getElementById('chk-ticks').checked = state.settings.ticks;
         document.getElementById('chk-haptics').checked = state.settings.haptics;
-        document.getElementById('countdown-threshold-select').value = state.settings.countdownThreshold === null ? 'disabled' : state.settings.countdownThreshold;
-        if (state.settings.timeRemainingThreshold === null) {
-          document.getElementById('time-remaining-select').value = 'never';
-        } else if (state.settings.timeRemainingThreshold === 0) {
-          document.getElementById('time-remaining-select').value = 'anytime';
-        } else {
-          document.getElementById('time-remaining-select').value = state.settings.timeRemainingThreshold;
-        }
+        this.loadDiscreteSlider('countdown-threshold-range', 'countdown-threshold-val', 'countdownThreshold', COUNTDOWN_THRESHOLD_OPTIONS);
+        this.loadDiscreteSlider('time-remaining-range', 'time-remaining-val', 'timeRemainingThreshold', TIME_REMAINING_THRESHOLD_OPTIONS);
+        this.loadDiscreteSlider('remaining-interval-range', 'remaining-interval-val', 'remainingTimeInterval', REMAINING_TIME_INTERVAL_OPTIONS);
       },
 
       renderRoutinesList() {
