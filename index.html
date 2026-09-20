@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0284c7">
+  <meta name="description" content="A client-side Text-to-Speech Workout Counter and Interval Timer">
+  
+  <!-- iOS PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WorkoutTTS">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/favicon.ico">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <title>Workout TTS</title>
+  <style>
+    /* Default / Light Mode Variables */
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --accent: #0284c7;
+      --accent-hover: #0369a1;
+      --accent-active: #075985;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --warning: #f59e0b;
+      --success: #10b981;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --nav-bg: #f1f5f9;
+      --input-bg: #ffffff;
+      --player-bg: #f8fafc;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Dark Mode Theme via prefers-color-scheme */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #0f172a;
+        --card-bg: #1e293b;
+        --card-border: #334155;
+        --accent: #38bdf8;
+        --accent-hover: #0284c7;
+        --accent-active: #0369a1;
+        --danger: #ef4444;
+        --danger-hover: #dc2626;
+        --warning: #f59e0b;
+        --success: #10b981;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --nav-bg: #020617;
+        --input-bg: #0f172a;
+        --player-bg: #0f172a;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* Navigation */
+    nav {
+      display: flex;
+      background-color: var(--nav-bg);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    nav button {
+      flex: 1;
+      padding: 1rem 0.5rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    nav button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    /* Card & Forms */
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea,
+    select {
+      background-color: var(--input-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      width: 100%;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+
+    .checkbox-group input {
+      width: 1.2rem;
+      height: 1.2rem;
+      accent-color: var(--accent);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      gap: 0.5rem;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #ffffff;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .btn-primary {
+        color: #0f172a;
+      }
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--card-border);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      opacity: 0.85;
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: #ffffff;
+    }
+
+    .btn-danger:hover {
+      background-color: var(--danger-hover);
+    }
+
+    .btn-sm {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.85rem;
+    }
+
+    .btn-icon {
+      padding: 0.4rem 0.6rem;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-icon:hover {
+      color: var(--text-main);
+      background-color: var(--card-border);
+    }
+
+    /* Routine Lists */
+    .routine-item {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .routine-info h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .routine-info p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Block Items inside Editor */
+    .block-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .block-item {
+      background-color: var(--input-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .block-item.dragging {
+      opacity: 0.5;
+      border-style: dashed;
+    }
+
+    .drag-handle {
+      cursor: grab;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      user-select: none;
+    }
+
+    .block-details {
+      flex: 1;
+    }
+
+    .block-details h4 {
+      font-size: 0.95rem;
+    }
+
+    .block-details p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Active Player Overlay View */
+    #player-view {
+      position: fixed;
+      inset: 0;
+      background-color: var(--player-bg);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 2rem 1.5rem;
+      text-align: center;
+    }
+
+    #player-view[hidden] {
+      display: none;
+    }
+
+    .player-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .player-status-badge {
+      align-self: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-rep { background-color: var(--accent); color: #ffffff; }
+    .status-rest { background-color: var(--success); color: #ffffff; }
+
+    @media (prefers-color-scheme: dark) {
+      .status-rep { color: #0f172a; }
+      .status-rest { color: #0f172a; }
+    }
+
+    #current-title {
+      font-size: 2rem;
+      font-weight: 800;
+    }
+
+    #counter-display {
+      font-size: 7rem;
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      margin: 1rem 0;
+      color: var(--text-main);
+    }
+
+    .counter-sub {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+    }
+
+    #next-up-preview {
+      font-size: 1rem;
+      color: var(--text-muted);
+      background: var(--card-bg);
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .controls-grid .btn {
+      padding: 1.25rem 0;
+      font-size: 1.1rem;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      padding: 1rem;
+    }
+
+    .modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 450px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    /* Utilities */
+    .row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .row > * { flex: 1; }
+    .text-center { text-align: center; }
+    .mt-1 { margin-top: 0.5rem; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation / Tab Bar -->
+  <nav>
+    <button id="tab-routines" class="active">Routines</button>
+    <button id="tab-settings">Settings</button>
+    <button id="tab-backup">Backup/Restore</button>
+  </nav>
+
+  <!-- Main View -->
+  <main id="app">
+
+    <!-- TAB 1: Routines Manager / Active View -->
+    <section id="sec-routines" class="tab-content active">
+      <div id="routine-list-view" class="card">
+        <div class="card-title">
+          <span>My Routines</span>
+          <button id="btn-create-routine" class="btn btn-primary btn-sm">+ New Routine</button>
+        </div>
+        <div id="routines-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- Items populated via JS -->
+        </div>
+      </div>
+
+      <!-- Routine Editor (Hidden by default) -->
+      <div id="routine-editor-view" class="card hidden">
+        <div class="card-title">
+          <span id="editor-title">Edit Routine</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="routine-name-input">Routine Name</label>
+          <input type="text" id="routine-name-input" placeholder="e.g., Morning Calisthenics">
+        </div>
+
+        <div class="card-title mt-1">
+          <span>Blocks</span>
+          <div class="actions">
+            <button id="btn-add-rep-block" class="btn btn-secondary btn-sm">+ Rep Set</button>
+            <button id="btn-add-rest-block" class="btn btn-secondary btn-sm">+ Rest</button>
+          </div>
+        </div>
+
+        <div id="block-list-container" class="block-list">
+          <!-- Render blocks here -->
+        </div>
+
+        <div class="row mt-1">
+          <button id="btn-cancel-routine" class="btn btn-secondary">Cancel</button>
+          <button id="btn-save-routine" class="btn btn-primary">Save Routine</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Voice & Sound Settings -->
+    <section id="sec-settings" class="tab-content">
+      <div class="card">
+        <div class="card-title">Voice & TTS Controls</div>
+        
+        <div class="form-group">
+          <label for="voice-select">Speech Voice</label>
+          <select id="voice-select">
+            <option value="">System Default</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="rate-range">Speech Rate: <span id="rate-val">1.0</span>x</label>
+          <input type="range" id="rate-range" min="0.5" max="2.0" step="0.1" value="1.0">
+        </div>
+
+        <div class="form-group">
+          <label for="pitch-range">Speech Pitch: <span id="pitch-val">1.0</span></label>
+          <input type="range" id="pitch-range" min="0.5" max="1.5" step="0.1" value="1.0">
+        </div>
+
+        <div class="form-group">
+          <label for="volume-range">Speech Volume: <span id="vol-val">100</span>%</label>
+          <input type="range" id="volume-range" min="0" max="1" step="0.05" value="1.0">
+        </div>
+
+        <button id="btn-test-voice" class="btn btn-secondary btn-sm">Test Voice Synthesis</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Audio & Feedback</div>
+
+        <label class="checkbox-group">
+          <input type="checkbox" id="chk-ticks" checked>
+          <span>Interval Tick/Chime Tone</span>
+        </label>
+
+        <label class="checkbox-group">
+          <input type="checkbox" id="chk-haptics" checked>
+          <span>Haptic Feedback (Vibration)</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- TAB 3: Backup & Restore -->
+    <section id="sec-backup" class="tab-content">
+      <div class="card">
+        <div class="card-title">Backup Data</div>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Export your routines and configurations to a local JSON file for safekeeping or transfer to another browser.</p>
+        <button id="btn-export-json" class="btn btn-primary">Export JSON Data</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Restore Data</div>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Import routines from a previously exported JSON backup file. This will merge or overwrite current saved routines.</p>
+        <input type="file" id="file-import-json" accept=".json" style="display: none;">
+        <button id="btn-import-trigger" class="btn btn-secondary">Select JSON File to Restore</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Active Counter Player View (Overlay) -->
+  <div id="player-view" hidden>
+    <div class="player-header">
+      <span id="player-status-badge" class="player-status-badge status-rep">WORK</span>
+      <h2 id="current-title">Push-ups</h2>
+    </div>
+
+    <div>
+      <div id="counter-display">1</div>
+      <div id="counter-sub" class="counter-sub">Rep 1 of 10</div>
+    </div>
+
+    <div id="next-up-preview">Next: Rest (45s)</div>
+
+    <div class="controls-grid">
+      <button id="btn-pause" class="btn btn-secondary">Pause</button>
+      <button id="btn-skip" class="btn btn-secondary">Skip</button>
+      <button id="btn-stop" class="btn btn-danger">Stop</button>
+    </div>
+  </div>
+
+  <!-- Modal for Adding/Editing Blocks -->
+  <div id="block-modal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <h3 id="modal-title">Configure Block</h3>
+      
+      <div class="form-group">
+        <label for="block-type-select">Block Type</label>
+        <select id="block-type-select">
+          <option value="rep">Reps Counter</option>
+          <option value="rest">Rest Timer</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="block-title-input">Title / Exercise Name</label>
+        <input type="text" id="block-title-input" placeholder="e.g., Push-ups">
+      </div>
+
+      <div id="rep-fields">
+        <div class="row">
+          <div class="form-group">
+            <label for="block-reps-input">Total Reps</label>
+            <input type="number" id="block-reps-input" min="1" value="10">
+          </div>
+          <div class="form-group">
+            <label for="block-pace-input">Pace / Rep (s)</label>
+            <input type="number" id="block-pace-input" min="0.5" step="0.1" value="3.0">
+          </div>
+        </div>
+      </div>
+
+      <div id="rest-fields" class="hidden">
+        <div class="form-group">
+          <label for="block-duration-input">Rest Duration (seconds)</label>
+          <input type="number" id="block-duration-input" min="1" value="60">
+        </div>
+        <div class="form-group mt-1">
+          <label for="block-instructions-input">Instructions (Optional)</label>
+          <textarea id="block-instructions-input" placeholder="e.g., Assume the pushups position on your yoga mat. Shoulders back. Hands directly beneath your shoulders."></textarea>
+        </div>
+      </div>
+
+      <div class="row mt-1">
+        <button id="btn-cancel-block" class="btn btn-secondary">Cancel</button>
+        <button id="btn-save-block" class="btn btn-primary">Save Block</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. DATA STORE (State & LocalStorage Sync)
+       ========================================================================= */
+    const STORAGE_KEY_ROUTINES = 'vrc_routines';
+    const STORAGE_KEY_SETTINGS = 'vrc_settings';
+
+    const defaultRoutines = [
+      {
+        id: 'default-1',
+        name: 'Full Body Circuit',
+        blocks: [
+          { id: 'b1', type: 'rep', title: 'Bodyweight Squats', reps: 10, pace: 3.0 },
+          { id: 'b2', type: 'rest', title: 'Rest', duration: 20, instructions: '' },
+          { id: 'b3', type: 'rep', title: 'Push-ups', reps: 12, pace: 2.5 },
+          { id: 'b4', type: 'rest', title: 'Hydration Recovery', duration: 45, instructions: '' }
+        ]
+      }
+    ];
+
+    const defaultSettings = {
+      voiceURI: '',
+      rate: 1.0,
+      pitch: 1.0,
+      volume: 1.0,
+      ticks: true,
+      haptics: true
+    };
+
+    let state = {
+      routines: JSON.parse(localStorage.getItem(STORAGE_KEY_ROUTINES)) || defaultRoutines,
+      settings: Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}')),
+      currentEditingRoutineId: null,
+      editingRoutineDraft: null,
+      editingBlockId: null
+    };
+
+    function saveRoutines() {
+      localStorage.setItem(STORAGE_KEY_ROUTINES, JSON.stringify(state.routines));
+    }
+
+    function saveSettings() {
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
+    }
+
+    function formatDurationSpeech(seconds) {
+      const totalSec = Math.round(seconds);
+      if (totalSec > 59) {
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        const minStr = `${mins} ${mins === 1 ? 'minute' : 'minutes'}`;
+        if (secs > 0) {
+          const secStr = `${secs} ${secs === 1 ? 'second' : 'seconds'}`;
+          return `${minStr} and ${secStr}`;
+        }
+        return minStr;
+      }
+      return `${totalSec} seconds`;
+    }
+
+    function formatDisplayTime(seconds) {
+      const totalSec = Math.max(0, Math.ceil(seconds));
+      if (totalSec > 59) {
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      }
+      return `${totalSec}`;
+    }
+
+    /* =========================================================================
+       2. AUDIO ENGINE (TTS & Web Audio API Synthesizer)
+       ========================================================================= */
+    class AudioEngine {
+      constructor() {
+        this.synth = window.speechSynthesis;
+        this.voices = [];
+        this.audioCtx = null;
+        this.initVoices();
+      }
+
+      initVoices() {
+        if (!this.synth) return;
+        const load = () => {
+          this.voices = this.synth.getVoices();
+          populateVoiceDropdown(this.voices);
+        };
+        load();
+        if (this.synth.onvoiceschanged !== undefined) {
+          this.synth.onvoiceschanged = load;
+        }
+      }
+
+      getAudioContext() {
+        if (!this.audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.audioCtx = new AudioContext();
+          }
+        }
+        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume();
+        }
+        return this.audioCtx;
+      }
+
+      stopSpeech() {
+        if (this.synth) {
+          this.synth.cancel();
+        }
+      }
+
+      speak(text, priority = false, onEndCallback = null) {
+        if (!this.synth || !text) {
+          if (onEndCallback) onEndCallback();
+          return;
+        }
+        if (priority) {
+          this.synth.cancel();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = state.settings.rate;
+        utterance.pitch = state.settings.pitch;
+        utterance.volume = state.settings.volume;
+
+        if (state.settings.voiceURI) {
+          const matchedVoice = this.voices.find(v => v.voiceURI === state.settings.voiceURI);
+          if (matchedVoice) utterance.voice = matchedVoice;
+        }
+
+        if (onEndCallback) {
+          utterance.onend = onEndCallback;
+          utterance.onerror = onEndCallback;
+        }
+
+        this.synth.speak(utterance);
+      }
+
+      playTone(freq, type, duration) {
+        if (!state.settings.ticks) return;
+        try {
+          const ctx = this.getAudioContext();
+          if (!ctx) return;
+
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start();
+          osc.stop(ctx.currentTime + duration);
+        } catch (e) {
+          console.error("Audio Synthesis Error:", e);
+        }
+      }
+
+      playTick() {
+        this.playTone(800, 'sine', 0.05);
+      }
+
+      playChime() {
+        this.playTone(1200, 'triangle', 0.25);
+      }
+    }
+
+    const audioEngine = new AudioEngine();
+
+    function triggerHaptic(pattern = 50) {
+      if (state.settings.haptics && navigator.vibrate) {
+        navigator.vibrate(pattern);
+      }
+    }
+
+    /* =========================================================================
+       3. EXECUTION ENGINE (State Machine & Timer Logic)
+       ========================================================================= */
+    class ExecutionEngine {
+      constructor() {
+        this.routine = null;
+        this.blockIndex = 0;
+        this.subState = 'WORK'; // 'WORK', 'REST'
+        this.currentRep = 0;
+        this.timer = null;
+        this.isPaused = false;
+        this.wakeLock = null;
+        
+        // Time tracking
+        this.lastTime = 0;
+        this.accTime = 0;
+      }
+
+      async requestWakeLock() {
+        try {
+          if ('wakeLock' in navigator) {
+            this.wakeLock = await navigator.wakeLock.request('screen');
+          }
+        } catch (err) {
+          console.log('Wake Lock Error:', err);
+        }
+      }
+
+      releaseWakeLock() {
+        if (this.wakeLock) {
+          this.wakeLock.release().then(() => { this.wakeLock = null; });
+        }
+      }
+
+      start(routine) {
+        this.routine = routine;
+        this.blockIndex = 0;
+        this.isPaused = false;
+        this.requestWakeLock();
+        audioEngine.getAudioContext(); // Ensure Context activated by gesture
+        
+        ui.showPlayer(true);
+        this.loadBlock();
+      }
+
+      loadBlock() {
+        if (this.blockIndex >= this.routine.blocks.length) {
+          this.finishRoutine();
+          return;
+        }
+
+        const block = this.routine.blocks[this.blockIndex];
+        
+        if (block.type === 'rep') {
+          this.setupWorkPhase(block);
+        } else if (block.type === 'rest') {
+          this.setupStandAloneRestPhase(block);
+        }
+      }
+
+      setupWorkPhase(block) {
+        this.stopLoop();
+        this.subState = 'WORK';
+        this.currentRep = 1;
+        this.accTime = block.pace;
+        
+        const initialDisplay = block.reps === 1 ? formatDisplayTime(this.accTime) : this.currentRep;
+        const initialSub = block.reps === 1 ? 'Work Period' : `Rep 1 of ${block.reps}`;
+
+        ui.updatePlayerStatus('WORK', 'status-rep', block.title, initialDisplay, initialSub, this.getNextPreview());
+        audioEngine.playChime();
+        triggerHaptic([100, 50, 100]);
+
+        const spokenDuration = block.reps === 1 ? `${formatDurationSpeech(block.pace)}.` : '';
+        const phrase = spokenDuration ? `${block.title}. ${spokenDuration} Begin.` : `${block.title}. Begin.`;
+
+        audioEngine.speak(phrase, true, () => {
+          if (this.isPaused || this.subState !== 'WORK') return;
+          if (block.reps > 1) {
+            audioEngine.speak(`1`, false);
+          }
+          audioEngine.playTick();
+          triggerHaptic(60);
+          this.lastTime = performance.now();
+          this.startLoop();
+        });
+      }
+
+      setupStandAloneRestPhase(block) {
+        this.stopLoop();
+        this.subState = 'REST';
+        this.accTime = block.duration;
+        ui.updatePlayerStatus('REST', 'status-rest', block.title, formatDisplayTime(this.accTime), 'Rest Block', this.getNextPreview());
+        
+        const formattedDuration = formatDurationSpeech(block.duration);
+        let phrase = '';
+        if (block.instructions && block.instructions.trim()) {
+          phrase = `${block.title} in ${formattedDuration}. ${block.instructions.trim()}`;
+        } else {
+          phrase = `${block.title}. ${formattedDuration} rest.`;
+        }
+
+        audioEngine.speak(phrase, true);
+        this.startLoop();
+      }
+
+      getNextPreview() {
+        const nextBlock = this.routine.blocks[this.blockIndex + 1];
+        if (nextBlock) {
+          return `Next: ${nextBlock.title} (${nextBlock.type === 'rep' ? nextBlock.reps + ' reps' : nextBlock.duration + 's'})`;
+        }
+        return 'Next: Workout Complete';
+      }
+
+      startLoop() {
+        this.stopLoop();
+        this.lastTime = performance.now();
+        this.timer = setInterval(() => this.tick(), 100);
+      }
+
+      stopLoop() {
+        if (this.timer) {
+          clearInterval(this.timer);
+          this.timer = null;
+        }
+      }
+
+      tick() {
+        if (this.isPaused) return;
+
+        const now = performance.now();
+        const delta = (now - this.lastTime) / 1000;
+        this.lastTime = now;
+
+        const prevSec = Math.ceil(this.accTime);
+        this.accTime -= delta;
+        const currentSec = Math.ceil(this.accTime);
+
+        const block = this.routine.blocks[this.blockIndex];
+
+        if (this.subState === 'REST') {
+          if (currentSec !== prevSec && currentSec > 0) {
+            ui.updateCounterDisplay(formatDisplayTime(this.accTime));
+            if (currentSec <= 3) {
+              audioEngine.speak(`${currentSec}`);
+              audioEngine.playTick();
+              triggerHaptic(40);
+            }
+          }
+
+          if (this.accTime <= 0) {
+            this.blockIndex++;
+            this.loadBlock();
+          }
+        } else if (this.subState === 'WORK') {
+          if (block.reps === 1) {
+            if (currentSec !== prevSec && currentSec > 0) {
+              ui.updateCounterDisplay(formatDisplayTime(this.accTime));
+              if (currentSec <= 3) {
+                audioEngine.speak(`${currentSec}`);
+                audioEngine.playTick();
+                triggerHaptic(40);
+              }
+            }
+
+            if (this.accTime <= 0) {
+              this.blockIndex++;
+              this.loadBlock();
+            }
+          } else {
+            if (this.accTime <= 0) {
+              if (this.currentRep < block.reps) {
+                this.currentRep++;
+                this.accTime += block.pace; // accumulate offset to prevent drift
+                ui.updateCounterDisplay(this.currentRep);
+                ui.updateCounterSub(`Rep ${this.currentRep} of ${block.reps}`);
+                audioEngine.speak(`${this.currentRep}`, true);
+                audioEngine.playTick();
+                triggerHaptic(60);
+              } else {
+                // Work set completed
+                this.blockIndex++;
+                this.loadBlock();
+              }
+            }
+          }
+        }
+      }
+
+      pause() {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          audioEngine.stopSpeech();
+          ui.setPauseButtonText('Resume');
+        } else {
+          this.lastTime = performance.now();
+          ui.setPauseButtonText('Pause');
+        }
+      }
+
+      skip() {
+        audioEngine.stopSpeech();
+        this.blockIndex++;
+        this.loadBlock();
+      }
+
+      stop() {
+        this.stopLoop();
+        audioEngine.stopSpeech();
+        this.releaseWakeLock();
+        ui.showPlayer(false);
+      }
+
+      finishRoutine() {
+        this.stopLoop();
+        this.releaseWakeLock();
+        audioEngine.speak('Workout completed! Excellent job!', true);
+        ui.updatePlayerStatus('FINISHED', 'status-rest', 'Complete!', '✓', 'All done', '');
+        setTimeout(() => {
+          ui.showPlayer(false);
+        }, 3000);
+      }
+    }
+
+    const executionEngine = new ExecutionEngine();
+
+    /* =========================================================================
+       4. UI HANDLER (DOM Interactions & Rendering)
+       ========================================================================= */
+    const ui = {
+      // Navigation Tabs
+      tabRoutines: document.getElementById('tab-routines'),
+      tabSettings: document.getElementById('tab-settings'),
+      tabBackup: document.getElementById('tab-backup'),
+      secRoutines: document.getElementById('sec-routines'),
+      secSettings: document.getElementById('sec-settings'),
+      secBackup: document.getElementById('sec-backup'),
+
+      // Routine Management View
+      routineListView: document.getElementById('routine-list-view'),
+      routineEditorView: document.getElementById('routine-editor-view'),
+      routinesContainer: document.getElementById('routines-container'),
+      blockListContainer: document.getElementById('block-list-container'),
+      routineNameInput: document.getElementById('routine-name-input'),
+
+      // Player Overlay Elements
+      playerView: document.getElementById('player-view'),
+      playerStatusBadge: document.getElementById('player-status-badge'),
+      currentTitle: document.getElementById('current-title'),
+      counterDisplay: document.getElementById('counter-display'),
+      counterSub: document.getElementById('counter-sub'),
+      nextUpPreview: document.getElementById('next-up-preview'),
+      btnPause: document.getElementById('btn-pause'),
+
+      // Modal Elements
+      blockModal: document.getElementById('block-modal'),
+      blockTypeSelect: document.getElementById('block-type-select'),
+      blockTitleInput: document.getElementById('block-title-input'),
+      blockRepsInput: document.getElementById('block-reps-input'),
+      blockPaceInput: document.getElementById('block-pace-input'),
+      blockDurationInput: document.getElementById('block-duration-input'),
+      blockInstructionsInput: document.getElementById('block-instructions-input'),
+      repFields: document.getElementById('rep-fields'),
+      restFields: document.getElementById('rest-fields'),
+
+      init() {
+        this.bindEvents();
+        this.renderRoutinesList();
+        this.loadSettingsUI();
+        this.registerServiceWorker();
+      },
+
+      registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+              .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+              .catch(err => console.log('Service Worker registration failed:', err));
+          });
+        }
+      },
+
+      bindEvents() {
+        // Tab switching
+        const tabs = [
+          [this.tabRoutines, this.secRoutines],
+          [this.tabSettings, this.secSettings],
+          [this.tabBackup, this.secBackup]
+        ];
+
+        tabs.forEach(([btn, sec]) => {
+          btn.addEventListener('click', () => {
+            tabs.forEach(([b, s]) => {
+              b.classList.remove('active');
+              s.classList.remove('active');
+            });
+            btn.classList.add('active');
+            sec.classList.add('active');
+          });
+        });
+
+        // Routine CRUD
+        document.getElementById('btn-create-routine').addEventListener('click', () => this.createRoutine());
+        document.getElementById('btn-save-routine').addEventListener('click', () => this.saveRoutine());
+        document.getElementById('btn-cancel-routine').addEventListener('click', () => this.cancelRoutineEdit());
+
+        // Block Modal Triggers
+        document.getElementById('btn-add-rep-block').addEventListener('click', () => this.openBlockModal('rep'));
+        document.getElementById('btn-add-rest-block').addEventListener('click', () => this.openBlockModal('rest'));
+        document.getElementById('btn-cancel-block').addEventListener('click', () => this.closeBlockModal());
+        document.getElementById('btn-save-block').addEventListener('click', () => this.saveBlock());
+
+        this.blockTypeSelect.addEventListener('change', (e) => {
+          this.toggleBlockModalFields(e.target.value);
+        });
+
+        // Player UI Actions
+        this.btnPause.addEventListener('click', () => executionEngine.pause());
+        document.getElementById('btn-skip').addEventListener('click', () => executionEngine.skip());
+        document.getElementById('btn-stop').addEventListener('click', () => executionEngine.stop());
+
+        // Settings Bindings
+        document.getElementById('voice-select').addEventListener('change', (e) => {
+          state.settings.voiceURI = e.target.value;
+          saveSettings();
+        });
+
+        this.bindSlider('rate-range', 'rate-val', 'rate');
+        this.bindSlider('pitch-range', 'pitch-val', 'pitch');
+        
+        document.getElementById('volume-range').addEventListener('input', (e) => {
+          state.settings.volume = parseFloat(e.target.value);
+          document.getElementById('vol-val').textContent = Math.round(state.settings.volume * 100);
+          saveSettings();
+        });
+
+        document.getElementById('chk-ticks').addEventListener('change', (e) => {
+          state.settings.ticks = e.target.checked;
+          saveSettings();
+        });
+
+        document.getElementById('chk-haptics').addEventListener('change', (e) => {
+          state.settings.haptics = e.target.checked;
+          saveSettings();
+        });
+
+        document.getElementById('btn-test-voice').addEventListener('click', () => {
+          audioEngine.speak("Workout TTS is ready.");
+        });
+
+        // Backup & Restore
+        document.getElementById('btn-export-json').addEventListener('click', () => this.exportBackup());
+        document.getElementById('btn-import-trigger').addEventListener('click', () => document.getElementById('file-import-json').click());
+        document.getElementById('file-import-json').addEventListener('change', (e) => this.importBackup(e));
+      },
+
+      bindSlider(elementId, labelId, settingKey) {
+        const input = document.getElementById(elementId);
+        const label = document.getElementById(labelId);
+        input.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          state.settings[settingKey] = val;
+          label.textContent = val.toFixed(1);
+          saveSettings();
+        });
+      },
+
+      loadSettingsUI() {
+        document.getElementById('rate-range').value = state.settings.rate;
+        document.getElementById('rate-val').textContent = state.settings.rate.toFixed(1);
+        document.getElementById('pitch-range').value = state.settings.pitch;
+        document.getElementById('pitch-val').textContent = state.settings.pitch.toFixed(1);
+        document.getElementById('volume-range').value = state.settings.volume;
+        document.getElementById('vol-val').textContent = Math.round(state.settings.volume * 100);
+        document.getElementById('chk-ticks').checked = state.settings.ticks;
+        document.getElementById('chk-haptics').checked = state.settings.haptics;
+      },
+
+      renderRoutinesList() {
+        this.routinesContainer.innerHTML = '';
+        state.routines.forEach(routine => {
+          const item = document.createElement('div');
+          item.className = 'routine-item';
+          item.innerHTML = `
+            <div class="routine-info">
+              <h3>${escapeHTML(routine.name)}</h3>
+              <p>${routine.blocks.length} Blocks</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn-primary btn-sm" onclick="ui.startRoutine('${routine.id}')">Start</button>
+              <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">✏️</button>
+              <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">📝</button>
+              <button class="btn btn-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')">✕</button>
+            </div>
+          `;
+          this.routinesContainer.appendChild(item);
+        });
+      },
+
+      createRoutine() {
+        const newRoutine = {
+          id: 'routine-' + Date.now(),
+          name: '',
+          blocks: []
+        };
+        state.currentEditingRoutineId = newRoutine.id;
+        state.editingRoutineDraft = JSON.parse(JSON.stringify(newRoutine));
+
+        this.routineNameInput.value = '';
+        this.renderBlocksList(state.editingRoutineDraft);
+
+        this.routineListView.classList.add('hidden');
+        this.routineEditorView.classList.remove('hidden');
+      },
+
+      editRoutine(id) {
+        const routine = state.routines.find(r => r.id === id);
+        if (!routine) return;
+
+        state.currentEditingRoutineId = id;
+        state.editingRoutineDraft = JSON.parse(JSON.stringify(routine));
+
+        this.routineNameInput.value = state.editingRoutineDraft.name;
+        this.renderBlocksList(state.editingRoutineDraft);
+
+        this.routineListView.classList.add('hidden');
+        this.routineEditorView.classList.remove('hidden');
+      },
+
+      saveRoutine() {
+        const name = this.routineNameInput.value.trim();
+        if (!name) {
+          alert('Routine name cannot be empty.');
+          return;
+        }
+
+        if (!state.editingRoutineDraft) return;
+
+        state.editingRoutineDraft.name = name;
+
+        const existingIndex = state.routines.findIndex(r => r.id === state.currentEditingRoutineId);
+        if (existingIndex !== -1) {
+          state.routines[existingIndex] = state.editingRoutineDraft;
+        } else {
+          state.routines.push(state.editingRoutineDraft);
+        }
+
+        saveRoutines();
+        this.closeEditor();
+      },
+
+      cancelRoutineEdit() {
+        this.closeEditor();
+      },
+
+      closeEditor() {
+        state.currentEditingRoutineId = null;
+        state.editingRoutineDraft = null;
+        this.routineEditorView.classList.add('hidden');
+        this.routineListView.classList.remove('hidden');
+        this.renderRoutinesList();
+      },
+
+      duplicateRoutine(id) {
+        const original = state.routines.find(r => r.id === id);
+        if (!original) return;
+
+        const copy = JSON.parse(JSON.stringify(original));
+        copy.id = 'routine-' + Date.now();
+        copy.name = copy.name ? `${copy.name} (Copy)` : 'Copy';
+        state.routines.push(copy);
+        saveRoutines();
+        this.renderRoutinesList();
+      },
+
+      deleteRoutine(id) {
+        if (confirm('Are you sure you want to delete this routine?')) {
+          state.routines = state.routines.filter(r => r.id !== id);
+          saveRoutines();
+          this.renderRoutinesList();
+        }
+      },
+
+      renderBlocksList(routine) {
+        this.blockListContainer.innerHTML = '';
+        if (!routine || routine.blocks.length === 0) {
+          this.blockListContainer.innerHTML = `<p style="font-size:0.85rem; color: var(--text-muted); text-align:center;">No blocks added yet.</p>`;
+          return;
+        }
+
+        routine.blocks.forEach((block, index) => {
+          const item = document.createElement('div');
+          item.className = 'block-item';
+          item.draggable = true;
+          item.dataset.index = index;
+
+          let details = '';
+          if (block.type === 'rep') {
+            details = `${block.reps} reps @ ${block.pace}s/rep`;
+          } else {
+            details = `Duration: ${block.duration}s` + (block.instructions ? ' | Has Instructions' : '');
+          }
+
+          item.innerHTML = `
+            <span class="drag-handle">☰</span>
+            <div class="block-details">
+              <h4>${escapeHTML(block.title)} <span style="font-size:0.75rem; color:var(--text-muted);">(${block.type.toUpperCase()})</span></h4>
+              <p>${details}</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn-icon btn-sm" onclick="ui.openBlockModal(null, '${block.id}')" title="Edit Block">✏️</button>
+              <button class="btn btn-icon btn-sm" onclick="ui.duplicateBlock('${block.id}')" title="Duplicate Block">📝</button>
+              <button class="btn btn-danger btn-sm" onclick="ui.deleteBlock('${block.id}')">✕</button>
+            </div>
+          `;
+
+          // Drag and Drop reordering events
+          item.addEventListener('dragstart', (e) => {
+            item.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', index);
+          });
+
+          item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+          });
+
+          item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+          });
+
+          item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            const toIndex = index;
+            this.reorderBlocks(fromIndex, toIndex);
+          });
+
+          this.blockListContainer.appendChild(item);
+        });
+      },
+
+      reorderBlocks(fromIndex, toIndex) {
+        const routine = state.editingRoutineDraft;
+        if (!routine) return;
+
+        const [movedBlock] = routine.blocks.splice(fromIndex, 1);
+        routine.blocks.splice(toIndex, 0, movedBlock);
+
+        this.renderBlocksList(routine);
+      },
+
+      openBlockModal(type = 'rep', blockId = null) {
+        state.editingBlockId = blockId;
+        const routine = state.editingRoutineDraft;
+        
+        if (blockId && routine) {
+          const block = routine.blocks.find(b => b.id === blockId);
+          if (block) {
+            type = block.type;
+            this.blockTypeSelect.value = type;
+            this.blockTitleInput.value = block.title;
+            if (type === 'rep') {
+              this.blockRepsInput.value = block.reps;
+              this.blockPaceInput.value = block.pace;
+            } else {
+              this.blockDurationInput.value = block.duration;
+              this.blockInstructionsInput.value = block.instructions || '';
+            }
+          }
+        } else {
+          this.blockTypeSelect.value = type;
+          this.blockTitleInput.value = '';
+          this.blockRepsInput.value = 10;
+          this.blockPaceInput.value = 3.0;
+          this.blockDurationInput.value = 60;
+          this.blockInstructionsInput.value = '';
+        }
+
+        this.toggleBlockModalFields(type);
+        this.blockModal.hidden = false;
+      },
+
+      toggleBlockModalFields(type) {
+        if (type === 'rep') {
+          this.repFields.classList.remove('hidden');
+          this.restFields.classList.add('hidden');
+          this.blockTitleInput.placeholder = 'e.g., Push-ups';
+        } else {
+          this.repFields.classList.add('hidden');
+          this.restFields.classList.remove('hidden');
+          this.blockTitleInput.placeholder = 'e.g., Cooldown';
+        }
+      },
+
+      closeBlockModal() {
+        this.blockModal.hidden = true;
+        state.editingBlockId = null;
+      },
+
+      duplicateBlock(blockId) {
+        const routine = state.editingRoutineDraft;
+        if (!routine || !blockId) return;
+
+        const originalIndex = routine.blocks.findIndex(b => b.id === blockId);
+        if (originalIndex === -1) return;
+
+        const original = routine.blocks[originalIndex];
+        const copy = JSON.parse(JSON.stringify(original));
+        copy.id = 'block-' + Date.now();
+
+        routine.blocks.splice(originalIndex + 1, 0, copy);
+        this.renderBlocksList(routine);
+      },
+
+      saveBlock() {
+        const routine = state.editingRoutineDraft;
+        if (!routine) return;
+
+        const type = this.blockTypeSelect.value;
+        const title = this.blockTitleInput.value.trim();
+
+        if (!title) {
+          alert('Block title cannot be empty.');
+          return;
+        }
+
+        let blockData = {
+          id: state.editingBlockId || 'block-' + Date.now(),
+          type,
+          title
+        };
+
+        if (type === 'rep') {
+          blockData.reps = Math.max(1, parseInt(this.blockRepsInput.value, 10) || 1);
+          blockData.pace = Math.max(0.5, parseFloat(this.blockPaceInput.value) || 1.0);
+        } else {
+          blockData.duration = Math.max(1, parseInt(this.blockDurationInput.value, 10) || 1);
+          blockData.instructions = this.blockInstructionsInput.value.trim();
+        }
+
+        if (state.editingBlockId) {
+          const idx = routine.blocks.findIndex(b => b.id === state.editingBlockId);
+          if (idx !== -1) routine.blocks[idx] = blockData;
+        } else {
+          routine.blocks.push(blockData);
+        }
+
+        this.renderBlocksList(routine);
+        this.closeBlockModal();
+      },
+
+      deleteBlock(blockId) {
+        const routine = state.editingRoutineDraft;
+        if (!routine) return;
+
+        routine.blocks = routine.blocks.filter(b => b.id !== blockId);
+        this.renderBlocksList(routine);
+      },
+
+      startRoutine(id) {
+        const routine = state.routines.find(r => r.id === id);
+        if (!routine || routine.blocks.length === 0) {
+          alert('Please add at least one block to start this routine.');
+          return;
+        }
+        executionEngine.start(routine);
+      },
+
+      showPlayer(visible) {
+        this.playerView.hidden = !visible;
+        this.setPauseButtonText('Pause');
+      },
+
+      updatePlayerStatus(statusText, badgeClass, title, counter, subText, nextPreview) {
+        this.playerStatusBadge.textContent = statusText;
+        this.playerStatusBadge.className = `player-status-badge ${badgeClass}`;
+        this.currentTitle.textContent = title;
+        this.counterDisplay.textContent = counter;
+        this.counterSub.textContent = subText;
+        this.nextUpPreview.textContent = nextPreview;
+      },
+
+      updateCounterDisplay(value) {
+        this.counterDisplay.textContent = value;
+      },
+
+      updateCounterSub(text) {
+        this.counterSub.textContent = text;
+      },
+
+      setPauseButtonText(text) {
+        this.btnPause.textContent = text;
+      },
+
+      exportBackup() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `workout_tts_backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(dlAnchorElem);
+        dlAnchorElem.click();
+        dlAnchorElem.remove();
+      },
+
+      importBackup(event) {
+        const fileReader = new FileReader();
+        fileReader.onload = (e) => {
+          try {
+            const importedData = JSON.parse(e.target.result);
+            if (importedData.routines) {
+              state.routines = importedData.routines;
+              saveRoutines();
+            }
+            if (importedData.settings) {
+              state.settings = Object.assign({}, defaultSettings, importedData.settings);
+              saveSettings();
+              this.loadSettingsUI();
+            }
+            this.renderRoutinesList();
+            alert('Backup data successfully restored!');
+          } catch (err) {
+            alert('Invalid backup file format.');
+          }
+        };
+        if (event.target.files[0]) {
+          fileReader.readAsText(event.target.files[0]);
+        }
+      }
+    };
+
+    function populateVoiceDropdown(voices) {
+      const select = document.getElementById('voice-select');
+      select.innerHTML = '<option value="">System Default</option>';
+      voices.forEach(voice => {
+        const option = document.createElement('option');
+        option.value = voice.voiceURI;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        if (voice.voiceURI === state.settings.voiceURI) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+
+    // Initialize application
+    document.addEventListener('DOMContentLoaded', () => {
+      ui.init();
+    });
+  </script>
+</body>
+</html>
