@@ -596,7 +596,7 @@
       <div class="card">
         <div class="card-title">Restore ALL Data</div>
         <p style="font-size:0.85rem; color: var(--text-muted);">Import routines from a previously exported JSON backup file. This will merge or overwrite current saved routines.</p>
-        <input type="file" id="file-import-json" style="display: none;">
+        <input type="file" id="file-import-json" accept="application/json" style="display: none;">
         <button id="btn-import-trigger" class="btn btn-secondary">Select JSON File to Restore</button>
       </div>
 
@@ -609,7 +609,7 @@
       <div class="card">
         <div class="card-title">Import Routine(s)</div>
         <p style="font-size:0.85rem; color: var(--text-muted);">Import shared routines without losing your other saved routines. (Duplicate routines and blocks will be overwritten.)</p>
-        <input type="file" id="file-import-routines" style="display: none;">
+        <input type="file" id="file-import-routines" accept="application/json" style="display: none;">
         <button id="btn-import-routines-trigger" class="btn btn-secondary">Select JSON File to Import</button>
       </div>
     </section>
