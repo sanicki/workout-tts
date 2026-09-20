@@ -1310,13 +1310,44 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       },
 
       registerServiceWorker() {
-        if ('serviceWorker' in navigator) {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-              .then(reg => console.log('Service Worker registered successfully:', reg.scope))
-              .catch(err => console.log('Service Worker registration failed:', err));
+        if (!('serviceWorker' in navigator)) return;
+
+        window.addEventListener('load', () => {
+          // A worker already controlling this load means there's a previous
+          // version running that a later update should replace. On a fresh
+          // install there's nothing running yet to refresh away from, so the
+          // auto-reload below is skipped for that first activation.
+          const hadController = !!navigator.serviceWorker.controller;
+
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => {
+              console.log('Service Worker registered successfully:', reg.scope);
+
+              // Reopening the app from the background is usually a resume, not a
+              // fresh navigation, so it may never otherwise trigger an update
+              // check. Ask again whenever the app becomes visible; if offline or
+              // already current this is a harmless no-op.
+              document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                  reg.update().catch(() => {});
+                }
+              });
+            })
+            .catch(err => console.log('Service Worker registration failed:', err));
+
+          if (!hadController) return;
+
+          // Once a newly-installed worker activates and takes control, the page
+          // is still running the old cached JS in memory. Reload so the update
+          // (already fully downloaded and cached at this point) takes effect
+          // immediately instead of waiting for the user to relaunch the app.
+          let reloadedForUpdate = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (reloadedForUpdate) return;
+            reloadedForUpdate = true;
+            window.location.reload();
           });
-        }
+        });
       },
 
       bindEvents() {
