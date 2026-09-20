@@ -588,19 +588,6 @@
     <!-- TAB 3: Backup & Restore -->
     <section id="sec-backup" class="tab-content">
       <div class="card">
-        <div class="card-title">Backup ALL Data</div>
-        <p style="font-size:0.85rem; color: var(--text-muted);">Export your routines and configurations to a local JSON file for safekeeping or transfer to another browser.</p>
-        <button id="btn-export-json" class="btn btn-primary">Export JSON Data</button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Restore ALL Data</div>
-        <p style="font-size:0.85rem; color: var(--text-muted);">Import routines from a previously exported JSON backup file. This will merge or overwrite current saved routines.</p>
-        <input type="file" id="file-import-json" accept="application/json" style="display: none;">
-        <button id="btn-import-trigger" class="btn btn-secondary">Select JSON File to Restore</button>
-      </div>
-
-      <div class="card">
         <div class="card-title">Export Routine(s)</div>
         <p style="font-size:0.85rem; color: var(--text-muted);">Export selected routines and blocks to a local JSON file. Perfect for sharing.</p>
         <button id="btn-export-routines" class="btn btn-primary">Select Routines to Export</button>
@@ -611,6 +598,26 @@
         <p style="font-size:0.85rem; color: var(--text-muted);">Import shared routines without losing your other saved routines. (Duplicate routines and blocks will be overwritten.)</p>
         <input type="file" id="file-import-routines" accept="application/json" style="display: none;">
         <button id="btn-import-routines-trigger" class="btn btn-secondary">Select JSON File to Import</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">LLM Prompt</div>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Prompt an LLM (like Google Gemini) to create a routine from a YouTube video workout.</p>
+        <button id="btn-copy-llm-prompt" class="btn btn-primary">Copy LLM Prompt</button>
+        <button id="btn-paste-llm-json" class="btn btn-secondary">Paste LLM-provided JSON</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Backup ALL Data</div>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Export your routines and configurations to a local JSON file for safekeeping or transfer to another browser.</p>
+        <button id="btn-export-json" class="btn btn-primary">Export JSON Data</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Restore ALL Data</div>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Import routines from a previously exported JSON backup file. This will merge or overwrite current saved routines.</p>
+        <input type="file" id="file-import-json" accept="application/json" style="display: none;">
+        <button id="btn-import-trigger" class="btn btn-secondary">Select JSON File to Restore</button>
       </div>
     </section>
 
@@ -743,6 +750,65 @@
       editingRoutineDraft: null,
       editingBlockId: null
     };
+
+    const LLM_ROUTINE_PROMPT = `You are a fitness expert creating a structured workout routine from a YouTube video.
+
+TASK:
+Watch and analyze this YouTube video: [PASTE YOUTUBE VIDEO LINK HERE]
+
+Then create a detailed workout routine in JSON format that can be imported into the Workout TTS (Text-to-Speech) fitness app.
+
+ROUTINE STRUCTURE:
+The routine should consist of alternating "rest blocks" and "rep blocks", with a REST BLOCK placed immediately BEFORE every single exercise (including the very first one) so the user always has time to get into position before it starts.
+
+- REST BLOCK: Contains a rest duration (in seconds) and brief instructions describing the UPCOMING exercise
+- REP BLOCK: Contains an exercise name, number of reps, and pace (seconds per rep)
+
+SPECIFIC REQUIREMENTS:
+
+1. **Rest Blocks** (one immediately before EVERY exercise, with no exceptions) should include:
+   - Rest duration in seconds (30-90 seconds depending on intensity)
+   - Instructions field: A brief (1-2 sentences max) description of the next exercise and how to set up for it
+   - Examples of good instructions:
+     * "Push-ups: assume a push-up position with shoulders back, hands directly beneath shoulders"
+     * "Bodyweight squats: stand with feet hip-width apart, engage your core for balance"
+     * "Mountain climbers: start in a plank position with hands shoulder-width apart on the ground"
+
+2. **Rep Blocks** should include:
+   - Exercise name (clear, specific)
+   - Number of repetitions (or duration in seconds if it's a timed exercise)
+   - Pace per rep in seconds (estimated time to complete one rep, including form)
+
+3. **Routine Metadata**:
+   - Name: [Descriptive routine name from the video]
+   - Description: [Brief description of the workout type]
+
+4. **Format**: Return valid JSON with this structure (note that a "rest" block always comes first, immediately before its corresponding "rep" block):
+\`\`\`json
+{
+  "id": "routine-[generated-id]",
+  "name": "[Routine Name]",
+  "description": "[Brief description]",
+  "blocks": [
+    {
+      "id": "block-[number]",
+      "type": "rest",
+      "title": "Rest",
+      "duration": [seconds],
+      "instructions": "[Brief description of the next exercise and setup instructions]"
+    },
+    {
+      "id": "block-[number]",
+      "type": "rep",
+      "title": "[Exercise Name]",
+      "reps": [number],
+      "pace": [seconds per rep as decimal]
+    }
+  ]
+}
+\`\`\`
+
+Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be pasted directly into the Workout TTS app.`;
 
     function saveRoutines() {
       localStorage.setItem(STORAGE_KEY_ROUTINES, JSON.stringify(state.routines));
@@ -1293,6 +1359,9 @@
         document.getElementById('btn-import-routines-trigger').addEventListener('click', () => document.getElementById('file-import-routines').click());
         document.getElementById('file-import-routines').addEventListener('change', (e) => this.importRoutines(e));
 
+        document.getElementById('btn-copy-llm-prompt').addEventListener('click', () => this.copyLLMPrompt());
+        document.getElementById('btn-paste-llm-json').addEventListener('click', () => this.pasteLLMRoutineJSON());
+
         document.getElementById('btn-cancel-export').addEventListener('click', () => {
           document.getElementById('export-routines-modal').hidden = true;
         });
@@ -1800,6 +1869,55 @@
         if (event.target.files[0]) {
           fileReader.readAsText(event.target.files[0]);
         }
+      },
+
+      copyLLMPrompt() {
+        navigator.clipboard.writeText(LLM_ROUTINE_PROMPT).then(() => {
+          alert('LLM prompt copied to clipboard!');
+        }).catch(err => {
+          alert('Failed to copy prompt: ' + err.message);
+        });
+      },
+
+      pasteLLMRoutineJSON() {
+        navigator.clipboard.readText().then(text => {
+          try {
+            const importedData = JSON.parse(text);
+            let importedRoutines;
+            if (Array.isArray(importedData.routines)) {
+              importedRoutines = importedData.routines;
+            } else if (importedData.blocks) {
+              importedRoutines = [importedData];
+            } else {
+              alert('Invalid routine JSON format.');
+              return;
+            }
+
+            importedRoutines.forEach((importedRoutine, i) => {
+              if (!importedRoutine.id) {
+                importedRoutine.id = 'routine-' + Date.now() + '-' + i;
+              }
+              const existingIndex = state.routines.findIndex(r => r.id === importedRoutine.id);
+              if (existingIndex !== -1) {
+                state.routines[existingIndex] = importedRoutine;
+              } else {
+                state.routines.push(importedRoutine);
+              }
+            });
+
+            state.routines.forEach(routine => {
+              routine.blocks = routine.blocks.filter(block => block.id && block.type && block.title);
+            });
+
+            saveRoutines();
+            this.renderRoutinesList();
+            alert('Routine successfully imported from clipboard!');
+          } catch (err) {
+            alert('Invalid JSON on clipboard: ' + err.message);
+          }
+        }).catch(err => {
+          alert('Failed to read clipboard: ' + err.message);
+        });
       }
     };
 
