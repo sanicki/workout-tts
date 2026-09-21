@@ -2727,21 +2727,36 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         state.routines.forEach((routine) => {
           const item = document.createElement('div');
           item.className = 'item-card';
+          // Action handlers are bound below via addEventListener, not
+          // inline onclick="...('${routine.id}')" - HTML-escaping an id
+          // interpolated into an inline event handler doesn't actually
+          // protect it, since the browser decodes HTML entities in an
+          // attribute value *before* handing it to the JS engine as the
+          // handler's source, undoing the escaping. Routine ids can come
+          // from imported JSON (backup restore, routine import, LLM
+          // paste), so this is reachable by more than just the app's own
+          // Date.now()-based ids. Binding real listeners with the id
+          // captured as a closure variable sidesteps the whole class of
+          // bug instead of trying to escape around it.
           item.innerHTML = `
             <span class="drag-handle" title="Drag to reorder">${DRAG_HANDLE_SVG}</span>
             <div class="item-content">
               <div class="item-title">${escapeHTML(routine.name)}</div>
               <div class="item-description">${routine.activities.length} Activities</div>
               <div class="item-actions-row split">
-                <button class="btn btn-icon btn-icon-primary btn-sm" onclick="ui.startRoutine('${routine.id}')" title="Start Routine">${PLAY_ICON_SVG}</button>
+                <button class="btn btn-icon btn-icon-primary btn-sm" data-action="start" title="Start Routine">${PLAY_ICON_SVG}</button>
                 <div class="item-actions-cluster">
-                  <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">${EDIT_ICON_SVG}</button>
-                  <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">${COPY_ICON_SVG}</button>
-                  <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')" title="Delete">${DELETE_ICON_SVG}</button>
+                  <button class="btn btn-icon btn-sm" data-action="edit" title="Edit">${EDIT_ICON_SVG}</button>
+                  <button class="btn btn-icon btn-sm" data-action="duplicate" title="Duplicate">${COPY_ICON_SVG}</button>
+                  <button class="btn btn-icon btn-icon-danger btn-sm" data-action="delete" title="Delete">${DELETE_ICON_SVG}</button>
                 </div>
               </div>
             </div>
           `;
+          item.querySelector('[data-action="start"]').addEventListener('click', () => this.startRoutine(routine.id));
+          item.querySelector('[data-action="edit"]').addEventListener('click', () => this.editRoutine(routine.id));
+          item.querySelector('[data-action="duplicate"]').addEventListener('click', () => this.duplicateRoutine(routine.id));
+          item.querySelector('[data-action="delete"]').addEventListener('click', () => this.deleteRoutine(routine.id));
           this.routinesContainer.appendChild(item);
         });
       },
@@ -2917,15 +2932,19 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           item.innerHTML = `
             <span class="drag-handle" title="Drag to reorder">${DRAG_HANDLE_SVG}</span>
             <div class="item-content">
-              <div class="item-title">${escapeHTML(activity.title)} <span class="type-badge">(${badgeLabel})</span></div>
-              <div class="item-description">${details}</div>
+              <div class="item-title">${escapeHTML(activity.title)} <span class="type-badge">(${escapeHTML(badgeLabel)})</span></div>
+              <div class="item-description">${escapeHTML(details)}</div>
               <div class="item-actions-row">
-                <button class="btn btn-icon btn-sm" onclick="ui.openActivityModal(null, '${activity.id}')" title="Edit Activity">${EDIT_ICON_SVG}</button>
-                <button class="btn btn-icon btn-sm" onclick="ui.duplicateActivity('${activity.id}')" title="Duplicate Activity">${COPY_ICON_SVG}</button>
-                <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteActivity('${activity.id}')" title="Delete Activity">${DELETE_ICON_SVG}</button>
+                <button class="btn btn-icon btn-sm" data-action="edit" title="Edit Activity">${EDIT_ICON_SVG}</button>
+                <button class="btn btn-icon btn-sm" data-action="duplicate" title="Duplicate Activity">${COPY_ICON_SVG}</button>
+                <button class="btn btn-icon btn-icon-danger btn-sm" data-action="delete" title="Delete Activity">${DELETE_ICON_SVG}</button>
               </div>
             </div>
           `;
+
+          item.querySelector('[data-action="edit"]').addEventListener('click', () => this.openActivityModal(null, activity.id));
+          item.querySelector('[data-action="duplicate"]').addEventListener('click', () => this.duplicateActivity(activity.id));
+          item.querySelector('[data-action="delete"]').addEventListener('click', () => this.deleteActivity(activity.id));
 
           this.activityListContainer.appendChild(item);
         });
@@ -3220,12 +3239,18 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           const badgeLabel = ACTIVITY_TYPE_BADGE_LABELS[favItem.type] || favItem.type.toUpperCase();
 
           item.innerHTML = `
-            <div class="item-content rippable" style="cursor: pointer;" onclick="ui.addFromFavorites('${favItem.id}')">
-              <div class="item-title">${escapeHTML(favItem.title)} <span class="type-badge">(${badgeLabel})</span></div>
-              <div style="font-size: 0.85rem; color: var(--text-muted);">${details}</div>
+            <div class="item-content rippable" style="cursor: pointer;" data-action="add">
+              <div class="item-title">${escapeHTML(favItem.title)} <span class="type-badge">(${escapeHTML(badgeLabel)})</span></div>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">${escapeHTML(details)}</div>
             </div>
-            <button class="btn btn-icon btn-icon-danger btn-sm" onclick="event.stopPropagation(); ui.deleteFromFavorites('${favItem.id}')" title="Remove from Favorites">${DELETE_ICON_SVG}</button>
+            <button class="btn btn-icon btn-icon-danger btn-sm" data-action="delete" title="Remove from Favorites">${DELETE_ICON_SVG}</button>
           `;
+
+          item.querySelector('[data-action="add"]').addEventListener('click', () => this.addFromFavorites(favItem.id));
+          item.querySelector('[data-action="delete"]').addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.deleteFromFavorites(favItem.id);
+          });
 
           this.favoritesPickerList.appendChild(item);
         });
