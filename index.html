@@ -264,6 +264,13 @@
       accent-color: var(--accent);
     }
 
+    .favorite-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
     /* Buttons */
     .btn {
       position: relative;
@@ -374,6 +381,14 @@
     .btn-icon-danger:hover {
       color: #ffffff;
       background-color: var(--danger);
+    }
+
+    /* Heart used for the Favorites feature - kept as its own class (rather
+       than reusing .btn-icon-danger) since favoriting isn't a destructive
+       action, even though it shares the same red the way a "liked" heart
+       conventionally does in most apps. */
+    .btn-icon-favorite {
+      color: var(--danger);
     }
 
     /* Routine Lists */
@@ -784,8 +799,12 @@
         <div class="card-title mt-1">
           <span>Activities</span>
           <div class="actions">
-            <button id="btn-from-favorites" class="btn btn-secondary btn-sm">+ Favorites</button>
-            <button id="btn-add-activity" class="btn btn-secondary btn-sm">+ Add Activity</button>
+            <button id="btn-from-favorites" class="btn btn-icon btn-icon-favorite" title="Add from Favorites" aria-label="Add from Favorites">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </button>
+            <button id="btn-add-activity" class="btn btn-icon btn-icon-primary" title="Add Activity" aria-label="Add Activity">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
           </div>
         </div>
 
@@ -996,10 +1015,12 @@
         </div>
       </div>
 
-      <label class="checkbox-group mt-1">
-        <input type="checkbox" id="chk-save-to-favorites">
-        <span>Also save to Favorites (for reuse in other routines)</span>
-      </label>
+      <div class="favorite-toggle-row mt-1">
+        <span id="favorite-toggle-label" style="font-weight: 600; color: var(--text-main);">Save to Favorites</span>
+        <button type="button" id="btn-favorite-toggle" class="btn btn-icon" title="Save to Favorites" aria-pressed="false" aria-label="Save to Favorites">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1-.35-.32C7.36 14.15 4 11.24 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.74-3.36 5.65-7.9 9.73l-.4.32z"/></svg>
+        </button>
+      </div>
 
       <div class="row mt-1">
         <button id="btn-cancel-activity" class="btn btn-secondary">Cancel</button>
@@ -1690,6 +1711,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     const COPY_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
     const DELETE_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
     const PLAY_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
+    const HEART_FILLED_ICON_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+    const HEART_OUTLINE_ICON_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1-.35-.32C7.36 14.15 4 11.24 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.74-3.36 5.65-7.9 9.73l-.4.32z"/></svg>`;
 
     const ACTIVITY_TYPE_BADGE_LABELS = {
       'reps': 'REPS',
@@ -1707,6 +1730,28 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         return `Duration: ${activity.duration}s | Has Instructions`;
       }
       return `Duration: ${activity.duration}s`;
+    }
+
+    // Whether two activities are "the same" for favoriting purposes - same
+    // type, title, and type-specific fields. Favorites are independent
+    // copies with no stored back-reference to what they were saved from, so
+    // this field-equality check is how the Configure Activity sheet detects
+    // "this exact activity is already in Favorites" to show its heart as
+    // filled, without needing to track that relationship explicitly.
+    function activitiesAreEquivalent(a, b) {
+      if (!a || !b || a.type !== b.type) return false;
+      if ((a.title || '').trim() !== (b.title || '').trim()) return false;
+      if (a.type === 'reps') {
+        return Number(a.reps) === Number(b.reps) && Number(a.pace) === Number(b.pace);
+      }
+      if (a.type === 'instructions') {
+        return Number(a.duration) === Number(b.duration) && (a.instructions || '').trim() === (b.instructions || '').trim();
+      }
+      return Number(a.duration) === Number(b.duration);
+    }
+
+    function findMatchingFavorite(activityData) {
+      return state.favorites.find(fav => activitiesAreEquivalent(fav, activityData)) || null;
     }
 
     /* =========================================================================
@@ -1962,7 +2007,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       repsFields: document.getElementById('reps-fields'),
       durationFields: document.getElementById('duration-fields'),
       instructionsFields: document.getElementById('instructions-fields'),
-      saveToFavoritesCheckbox: document.getElementById('chk-save-to-favorites'),
+      btnFavoriteToggle: document.getElementById('btn-favorite-toggle'),
+      favoriteToggleLabel: document.getElementById('favorite-toggle-label'),
       favoritesPickerModal: document.getElementById('favorites-picker-modal'),
       favoritesPickerList: document.getElementById('favorites-picker-list'),
 
@@ -2048,6 +2094,20 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.activityTypeSelect.addEventListener('change', (e) => {
           this.toggleActivityModalFields(e.target.value);
         });
+
+        // Favorite heart toggle - a manual tap always wins outright; a field
+        // edit only moves it when the field's match-to-an-existing-favorite
+        // status actually changes (see refreshFavoriteMatchState()), so a
+        // manual "favorite this new variant" choice survives further typing.
+        this.btnFavoriteToggle.addEventListener('click', () => {
+          this.favoriteToggleState = !this.favoriteToggleState;
+          this.updateFavoriteToggleUI();
+        });
+
+        [this.activityTitleInput, this.activityRepsInput, this.activityPaceInput, this.activityDurationInput, this.activityInstructionsInput].forEach((input) => {
+          input.addEventListener('input', () => this.refreshFavoriteMatchState());
+        });
+        this.activityTypeSelect.addEventListener('change', () => this.refreshFavoriteMatchState());
 
         // Player UI Actions
         this.btnPause.addEventListener('click', () => executionEngine.pause());
@@ -2400,8 +2460,16 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.activityInstructionsInput.value = '';
         }
 
-        this.saveToFavoritesCheckbox.checked = false;
         this.toggleActivityModalFields(type);
+
+        // Seed the favorite heart from whatever's actually in Favorites
+        // right now, so re-opening an activity that was added from a
+        // favorite (or happens to exactly match one) starts filled/"Saved".
+        const matched = !!findMatchingFavorite(this.readActivityFormAsData());
+        this.lastKnownFavoriteMatch = matched;
+        this.favoriteToggleState = matched;
+        this.updateFavoriteToggleUI();
+
         this.activityModalOriginal = this.readActivityFormValues();
         openSheet(this.activityModal);
         pushBackGuard(() => this.handleActivityModalBack());
@@ -2416,6 +2484,41 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           duration: this.activityDurationInput.value,
           instructions: this.activityInstructionsInput.value
         };
+      },
+
+      // A lighter version of readActivityFormValues() shaped like an actual
+      // activity record (only the fields relevant to its type), for
+      // matching against Favorites - not for the dirty-check snapshot.
+      readActivityFormAsData() {
+        const type = this.activityTypeSelect.value;
+        const title = this.activityTitleInput.value;
+        if (type === 'reps') {
+          return { type, title, reps: this.activityRepsInput.value, pace: this.activityPaceInput.value };
+        }
+        if (type === 'instructions') {
+          return { type, title, duration: this.activityDurationInput.value, instructions: this.activityInstructionsInput.value };
+        }
+        return { type, title, duration: this.activityDurationInput.value };
+      },
+
+      // Re-checks whether the current form now matches a saved favorite,
+      // and moves the heart only when that match status actually changed -
+      // so a manual tap (favoriting a new variant, or un-favoriting a
+      // matched one) isn't silently undone by unrelated further typing.
+      refreshFavoriteMatchState() {
+        const matched = !!findMatchingFavorite(this.readActivityFormAsData());
+        if (matched !== this.lastKnownFavoriteMatch) {
+          this.favoriteToggleState = matched;
+        }
+        this.lastKnownFavoriteMatch = matched;
+        this.updateFavoriteToggleUI();
+      },
+
+      updateFavoriteToggleUI() {
+        this.btnFavoriteToggle.innerHTML = this.favoriteToggleState ? HEART_FILLED_ICON_SVG : HEART_OUTLINE_ICON_SVG;
+        this.btnFavoriteToggle.classList.toggle('btn-icon-favorite', this.favoriteToggleState);
+        this.btnFavoriteToggle.setAttribute('aria-pressed', String(this.favoriteToggleState));
+        this.favoriteToggleLabel.textContent = this.favoriteToggleState ? 'Saved to Favorites' : 'Save to Favorites';
       },
 
       isActivityFormDirty() {
@@ -2463,6 +2566,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         closeSheet(this.activityModal);
         state.editingActivityId = null;
         this.activityModalOriginal = null;
+        this.favoriteToggleState = false;
+        this.lastKnownFavoriteMatch = false;
         closeTopBackGuard();
       },
 
@@ -2527,13 +2632,22 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
         }
 
-        if (this.saveToFavoritesCheckbox.checked) {
+        // Reconcile Favorites against the final saved values (not just the
+        // checkbox/heart's on-off state) so this is idempotent: saving with
+        // the heart on when an identical favorite already exists is a
+        // no-op rather than piling up duplicates, and saving with the heart
+        // off after it was seeded "on" from a match removes that favorite.
+        const matchingFavorite = findMatchingFavorite(activityData);
+        if (this.favoriteToggleState && !matchingFavorite) {
           // Independent copy, not a live reference - editing or deleting the
           // favorite later must not retroactively affect this routine's
           // activity (same mental model as "Duplicate" elsewhere in the app).
           const favoriteCopy = JSON.parse(JSON.stringify(activityData));
           favoriteCopy.id = 'fav-' + Date.now();
           state.favorites.push(favoriteCopy);
+          saveFavorites();
+        } else if (!this.favoriteToggleState && matchingFavorite) {
+          state.favorites = state.favorites.filter(f => f.id !== matchingFavorite.id);
           saveFavorites();
         }
 
