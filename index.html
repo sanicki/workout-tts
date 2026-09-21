@@ -398,8 +398,8 @@
     }
 
     /* Shared card layout: Routine cards and Activity cards both use a drag
-       handle beside a stacked [title] + [5-column action grid] content
-       block, so they read as one consistent pattern. */
+       handle beside a stacked [title] + [description] + [icon actions]
+       content block, so they read as one consistent pattern. */
     .item-card {
       /* Both Routine cards and Activity cards are nested inside a --card-bg
          parent card (the "My Routines" card and the "Edit Routine" card,
@@ -454,37 +454,30 @@
       color: var(--text-muted);
     }
 
-    .item-actions-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 0.5rem;
-    }
-
-    /* Plain text, not a bordered tile - this cell isn't tappable, so giving
-       it a box made it look like a fourth button. */
-    .grid-tile {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 0.4rem 0.6rem;
-      min-height: 44px;
-      min-width: 0;
+    /* Sits under the title at the same full card width it used to share
+       with the action icons, freeing that row to be icons only. */
+    .item-description {
+      font-size: 0.85rem;
       color: var(--text-muted);
-      font-size: 0.8rem;
       line-height: 1.3;
     }
 
-    .grid-tile.align-left {
-      grid-column: span 2;
-      justify-content: flex-start;
-      text-align: left;
+    .item-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
-    .item-actions-grid .btn {
-      width: 100%;
-      min-width: 0;
-      min-height: 44px;
+    /* Routine cards only: separates the primary Start action to the far
+       left, away from the Edit/Duplicate/Delete cluster on the right. */
+    .item-actions-row.split {
+      justify-content: space-between;
+    }
+
+    .item-actions-cluster {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     /* Activity Items inside Editor */
@@ -2224,12 +2217,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             <span class="drag-handle" title="Drag to reorder">${DRAG_HANDLE_SVG}</span>
             <div class="item-content">
               <div class="item-title">${escapeHTML(routine.name)}</div>
-              <div class="item-actions-grid">
-                <span class="grid-tile">${routine.activities.length} Activities</span>
+              <div class="item-description">${routine.activities.length} Activities</div>
+              <div class="item-actions-row split">
                 <button class="btn btn-icon btn-icon-primary btn-sm" onclick="ui.startRoutine('${routine.id}')" title="Start Routine">${PLAY_ICON_SVG}</button>
-                <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">${EDIT_ICON_SVG}</button>
-                <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">${COPY_ICON_SVG}</button>
-                <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')" title="Delete">${DELETE_ICON_SVG}</button>
+                <div class="item-actions-cluster">
+                  <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">${EDIT_ICON_SVG}</button>
+                  <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">${COPY_ICON_SVG}</button>
+                  <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')" title="Delete">${DELETE_ICON_SVG}</button>
+                </div>
               </div>
             </div>
           `;
@@ -2410,8 +2405,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             <span class="drag-handle" title="Drag to reorder">${DRAG_HANDLE_SVG}</span>
             <div class="item-content">
               <div class="item-title">${escapeHTML(activity.title)} <span class="type-badge">(${badgeLabel})</span></div>
-              <div class="item-actions-grid">
-                <span class="grid-tile align-left">${details}</span>
+              <div class="item-description">${details}</div>
+              <div class="item-actions-row">
                 <button class="btn btn-icon btn-sm" onclick="ui.openActivityModal(null, '${activity.id}')" title="Edit Activity">${EDIT_ICON_SVG}</button>
                 <button class="btn btn-icon btn-sm" onclick="ui.duplicateActivity('${activity.id}')" title="Duplicate Activity">${COPY_ICON_SVG}</button>
                 <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteActivity('${activity.id}')" title="Delete Activity">${DELETE_ICON_SVG}</button>
