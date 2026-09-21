@@ -34,7 +34,21 @@
       --nav-bg: #f1f5f9;
       --input-bg: #ffffff;
       --player-bg: #f8fafc;
+      --surface-elevated: #ffffff;
       --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+      /* Material-style elevation: layered shadows that read on a light surface */
+      --elevation-1: 0 1px 2px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.1);
+      --elevation-2: 0 2px 6px rgba(15,23,42,0.16), 0 1px 2px rgba(15,23,42,0.1);
+      --elevation-3: 0 8px 24px rgba(15,23,42,0.22), 0 2px 8px rgba(15,23,42,0.14);
+
+      /* Shape scale: distinct corner radii per surface type */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+
+      --nav-height: 64px;
     }
 
     /* Dark Mode Theme via prefers-color-scheme */
@@ -55,6 +69,12 @@
         --nav-bg: #020617;
         --input-bg: #0f172a;
         --player-bg: #0f172a;
+        /* Dark surfaces convey elevation mainly through a lighter tint - shadows
+           alone barely read against a dark background. */
+        --surface-elevated: #263348;
+        --elevation-1: 0 1px 2px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
+        --elevation-2: 0 2px 6px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3);
+        --elevation-3: 0 8px 24px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.35);
       }
     }
 
@@ -75,32 +95,46 @@
       line-height: 1.5;
     }
 
-    /* Navigation */
+    /* Navigation - a bottom nav bar keeps the 3 primary destinations within
+       thumb reach, matching Material's guidance for app-level navigation
+       (top tabs are reserved for sub-navigation within a section). */
     nav {
       display: flex;
       background-color: var(--nav-bg);
-      border-bottom: 1px solid var(--card-border);
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      border-top: 1px solid var(--card-border);
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 150;
+      box-shadow: var(--elevation-2);
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
     nav button {
       flex: 1;
-      padding: 1rem 0.5rem;
+      min-height: var(--nav-height);
+      padding: 0.5rem 0.25rem;
       background: none;
       border: none;
       color: var(--text-muted);
-      font-size: 0.9rem;
+      font-size: 0.7rem;
       font-weight: 600;
       cursor: pointer;
-      border-bottom: 3px solid transparent;
-      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+      transition: color 0.2s ease;
+    }
+
+    nav button .nav-icon svg {
+      display: block;
     }
 
     nav button.active {
       color: var(--accent);
-      border-bottom-color: var(--accent);
     }
 
     /* Main Container */
@@ -109,9 +143,45 @@
       max-width: 600px;
       width: 100%;
       margin: 0 auto;
-      padding: 1rem;
+      padding: 1rem 1rem calc(var(--nav-height) + 1rem + env(safe-area-inset-bottom));
       display: flex;
       flex-direction: column;
+    }
+
+    /* Floating Action Button - the primary "create" action for the active
+       tab, Material-style: circular, elevated, floating above the content
+       and the bottom nav. */
+    .fab {
+      position: fixed;
+      right: 1.25rem;
+      bottom: calc(var(--nav-height) + 1rem + env(safe-area-inset-bottom));
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      color: #ffffff;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--elevation-3);
+      cursor: pointer;
+      z-index: 140;
+      transition: transform 0.15s ease, background-color 0.2s ease;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .fab {
+        color: #0f172a;
+      }
+    }
+
+    .fab:active {
+      transform: scale(0.94);
+    }
+
+    .fab[hidden] {
+      display: none;
     }
 
     .tab-content {
@@ -128,7 +198,8 @@
     .card {
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--elevation-1);
       padding: 1.25rem;
       display: flex;
       flex-direction: column;
@@ -195,6 +266,8 @@
 
     /* Buttons */
     .btn {
+      position: relative;
+      overflow: hidden;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -206,6 +279,25 @@
       cursor: pointer;
       transition: background-color 0.2s, transform 0.1s;
       gap: 0.5rem;
+    }
+
+    /* Material tap ripple - a short-lived circle that expands from the
+       pointer's position, tinted with the button's own foreground color. */
+    .ripple-effect {
+      position: absolute;
+      border-radius: 50%;
+      background-color: currentColor;
+      opacity: 0.25;
+      transform: scale(0);
+      animation: ripple-anim 480ms ease-out;
+      pointer-events: none;
+    }
+
+    @keyframes ripple-anim {
+      to {
+        transform: scale(2.6);
+        opacity: 0;
+      }
     }
 
     .btn:active {
@@ -252,6 +344,8 @@
 
     .btn-icon {
       padding: 0.4rem 0.6rem;
+      min-width: 44px;
+      min-height: 44px;
       background: transparent;
       color: var(--text-muted);
       border: 1px solid var(--card-border);
@@ -260,6 +354,19 @@
     .btn-icon:hover {
       color: var(--text-main);
       background-color: var(--card-border);
+    }
+
+    /* A destructive icon button keeps the same outlined shape as its Edit/
+       Duplicate neighbors - only the color signals "danger" - rather than a
+       solid filled block that visually dominates the row. */
+    .btn-icon-danger {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .btn-icon-danger:hover {
+      color: #ffffff;
+      background-color: var(--danger);
     }
 
     /* Routine Lists */
@@ -279,11 +386,15 @@
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      transition: transform 150ms ease;
     }
 
     .item-card.dragging {
-      opacity: 0.5;
-      border-style: dashed;
+      position: relative;
+      z-index: 5;
+      transition: none;
+      box-shadow: var(--elevation-3);
+      cursor: grabbing;
     }
 
     .drag-handle {
@@ -293,6 +404,9 @@
       align-items: center;
       user-select: none;
       flex-shrink: 0;
+      /* Prevents the browser's own scroll gesture from hijacking a touch
+         drag that starts on the handle. */
+      touch-action: none;
     }
 
     .item-content {
@@ -326,6 +440,7 @@
       justify-content: center;
       text-align: center;
       padding: 0.4rem 0.6rem;
+      min-height: 44px;
       border-radius: 8px;
       border: 1px solid var(--card-border);
       color: var(--text-muted);
@@ -341,6 +456,7 @@
 
     .item-actions-grid .btn {
       width: 100%;
+      min-height: 44px;
     }
 
     /* Block Items inside Editor */
@@ -437,34 +553,166 @@
       font-size: 1.1rem;
     }
 
-    /* Modal */
-    .modal-backdrop {
+    /* Bottom Sheet - task-oriented panels (the block editor, the export
+       picker) slide up from the bottom rather than appearing as a centered
+       dialog, which is easier to reach one-handed on a phone. */
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 300;
+      opacity: 0;
+      transition: opacity 220ms ease;
+    }
+
+    .sheet-backdrop[hidden] {
+      display: none;
+    }
+
+    .sheet-backdrop.show {
+      opacity: 1;
+    }
+
+    .sheet {
+      background: var(--surface-elevated);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      box-shadow: var(--elevation-3);
+      width: 100%;
+      max-width: 450px;
+      padding: 1.5rem;
+      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: 90vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    .sheet-backdrop.show .sheet {
+      transform: translateY(0);
+    }
+
+    /* Dialog - small, centered, for a single yes/no decision (confirmations),
+       distinct in shape from a card or a bottom sheet per Material's shape
+       scale (a larger corner radius signals "this is a different kind of
+       elevated surface"). */
+    .dialog-backdrop {
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.6);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 300;
-      padding: 1rem;
+      z-index: 400;
+      padding: 1.5rem;
+      opacity: 0;
+      transition: opacity 180ms ease;
     }
 
-    .modal-backdrop[hidden] {
-      display: none;
+    .dialog-backdrop.show {
+      opacity: 1;
     }
 
-    .modal {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
+    .dialog {
+      background: var(--surface-elevated);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--elevation-3);
       width: 100%;
-      max-width: 450px;
+      max-width: 400px;
       padding: 1.5rem;
       display: flex;
       flex-direction: column;
       gap: 1rem;
-      max-height: 90vh;
-      overflow-y: auto;
+      transform: scale(0.9);
+      transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    .dialog-backdrop.show .dialog {
+      transform: scale(1);
+    }
+
+    .dialog h3 {
+      font-size: 1.15rem;
+    }
+
+    .dialog p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .dialog-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .dialog-actions .btn {
+      flex: 0 0 auto;
+      min-width: 88px;
+    }
+
+    /* Snackbar - brief, non-blocking feedback for things like validation
+       messages or a save confirmation, replacing native alert() popups that
+       ignore the app's theme and block the page. */
+    .snackbar-container {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 0.75rem);
+      display: flex;
+      justify-content: center;
+      z-index: 250;
+      padding: 0 1rem;
+      pointer-events: none;
+    }
+
+    .snackbar {
+      background: var(--text-main);
+      color: var(--bg-color);
+      padding: 0.85rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: var(--elevation-3);
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 200ms ease, transform 200ms ease;
+    }
+
+    .snackbar.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Slider value bubble - follows the thumb while dragging, so the value
+       is visible without looking away to a separate label. */
+    .slider-bubble {
+      position: absolute;
+      left: 0;
+      transform: translateX(-50%) translateY(-100%);
+      margin-top: -10px;
+      background: var(--text-main);
+      color: var(--bg-color);
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .slider-bubble.visible {
+      opacity: 1;
     }
 
     /* Utilities */
@@ -480,11 +728,20 @@
 </head>
 <body>
 
-  <!-- Top Navigation / Tab Bar -->
+  <!-- Bottom Navigation / Tab Bar -->
   <nav>
-    <button id="tab-routines" class="active">Routines</button>
-    <button id="tab-settings">Settings</button>
-    <button id="tab-backup">Backup/Restore</button>
+    <button id="tab-routines" class="active">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg></span>
+      <span class="nav-label">Routines</span>
+    </button>
+    <button id="tab-settings">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></span>
+      <span class="nav-label">Settings</span>
+    </button>
+    <button id="tab-backup">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg></span>
+      <span class="nav-label">Backup/Restore</span>
+    </button>
   </nav>
 
   <!-- Main View -->
@@ -495,7 +752,6 @@
       <div id="routine-list-view" class="card">
         <div class="card-title">
           <span>My Routines</span>
-          <button id="btn-create-routine" class="btn btn-primary btn-sm">+ New Routine</button>
         </div>
         <div id="routines-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
           <!-- Items populated via JS -->
@@ -637,6 +893,14 @@
 
   </main>
 
+  <!-- Floating Action Button - primary "create" action, visible only on the Routines tab -->
+  <button id="fab-new-routine" class="fab" title="New Routine" aria-label="New Routine">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+  </button>
+
+  <!-- Snackbar - transient, non-blocking feedback -->
+  <div id="snackbar-container" class="snackbar-container" aria-live="polite"></div>
+
   <!-- Active Counter Player View (Overlay) -->
   <div id="player-view" hidden>
     <div class="player-header">
@@ -658,9 +922,9 @@
     </div>
   </div>
 
-  <!-- Modal for Selecting Routines to Export -->
-  <div id="export-routines-modal" class="modal-backdrop" hidden>
-    <div class="modal">
+  <!-- Bottom sheet for Selecting Routines to Export -->
+  <div id="export-routines-modal" class="sheet-backdrop" hidden>
+    <div class="sheet">
       <h3>Select Routines to Export</h3>
       <p style="font-size:0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Choose which routines you want to export:</p>
       <div id="export-routines-list" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
@@ -673,9 +937,9 @@
     </div>
   </div>
 
-  <!-- Modal for Adding/Editing Blocks -->
-  <div id="block-modal" class="modal-backdrop" hidden>
-    <div class="modal">
+  <!-- Bottom sheet for Adding/Editing Blocks -->
+  <div id="block-modal" class="sheet-backdrop" hidden>
+    <div class="sheet">
       <h3 id="modal-title">Configure Block</h3>
       
       <div class="form-group">
@@ -715,8 +979,9 @@
         </div>
       </div>
 
-      <div id="rep-tip" style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-muted); display: none;">
-        💡 Tip: Set Total Reps to 1 to create a timed exercise.
+      <div id="rep-tip" style="background: var(--input-bg); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0;"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+        <span>Tip: Set Total Reps to 1 to create a timed exercise.</span>
       </div>
 
       <div class="row mt-1">
@@ -912,7 +1177,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       history.back();
     }
 
-    window.addEventListener('popstate', () => {
+    window.addEventListener('popstate', async () => {
       if (suppressedPopstates > 0) {
         suppressedPopstates--;
         return;
@@ -924,10 +1189,13 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         // overlay open (do nothing) or close it (which pops the guard for real).
         history.pushState({ guardDepth: backGuardStack.length }, '');
         onBack();
-      } else if (confirm('Exit Workout TTS?')) {
-        history.back();
       } else {
-        history.pushState({ guardDepth: 0 }, '');
+        const shouldExit = await showConfirmDialog({ title: 'Exit Workout TTS?', message: 'You can always reopen the app from your home screen.', confirmLabel: 'Exit' });
+        if (shouldExit) {
+          history.back();
+        } else {
+          history.pushState({ guardDepth: 0 }, '');
+        }
       }
     });
 
@@ -1314,6 +1582,218 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       <circle cx="15" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="15" cy="18" r="1.6"/>
     </svg>`;
 
+    // A small Material-style icon set (emoji render inconsistently across
+    // platforms and can't inherit button colors; these can).
+    const EDIT_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`;
+    const COPY_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
+    const DELETE_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
+
+    /* =========================================================================
+       4.5. SNACKBAR + DIALOG (replacing native alert()/confirm())
+       ========================================================================= */
+    let activeSnackbarTimeout = null;
+
+    // Brief, non-blocking feedback - validation messages, save/import
+    // confirmations - instead of a page-blocking native alert().
+    function showSnackbar(message) {
+      const container = document.getElementById('snackbar-container');
+      container.innerHTML = '';
+      clearTimeout(activeSnackbarTimeout);
+
+      const bar = document.createElement('div');
+      bar.className = 'snackbar';
+      bar.textContent = message;
+      container.appendChild(bar);
+      requestAnimationFrame(() => bar.classList.add('show'));
+
+      activeSnackbarTimeout = setTimeout(() => {
+        bar.classList.remove('show');
+        setTimeout(() => bar.remove(), 200);
+      }, 3200);
+    }
+
+    let activeDialogResolve = null;
+
+    // A themed, centered confirmation dialog returning a Promise<boolean>,
+    // replacing native confirm(). Only one at a time - a second call while
+    // one is open resolves to "cancel" rather than stacking dialogs.
+    function showConfirmDialog({ title, message, confirmLabel = 'OK', cancelLabel = 'Cancel', danger = false }) {
+      return new Promise((resolve) => {
+        if (activeDialogResolve) {
+          resolve(false);
+          return;
+        }
+        activeDialogResolve = resolve;
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'dialog-backdrop';
+        backdrop.innerHTML = `
+          <div class="dialog" role="alertdialog" aria-modal="true">
+            <h3>${escapeHTML(title)}</h3>
+            <p>${escapeHTML(message)}</p>
+            <div class="dialog-actions">
+              <button class="btn btn-secondary" data-action="cancel">${escapeHTML(cancelLabel)}</button>
+              <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-action="confirm">${escapeHTML(confirmLabel)}</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(backdrop);
+        requestAnimationFrame(() => backdrop.classList.add('show'));
+
+        function finish(result) {
+          backdrop.classList.remove('show');
+          setTimeout(() => backdrop.remove(), 180);
+          document.removeEventListener('keydown', onKeydown);
+          activeDialogResolve = null;
+          resolve(result);
+        }
+
+        function onKeydown(e) {
+          if (e.key === 'Escape') finish(false);
+        }
+
+        backdrop.addEventListener('click', (e) => {
+          if (e.target === backdrop) finish(false);
+        });
+        backdrop.querySelector('[data-action="cancel"]').addEventListener('click', () => finish(false));
+        backdrop.querySelector('[data-action="confirm"]').addEventListener('click', () => finish(true));
+        document.addEventListener('keydown', onKeydown);
+      });
+    }
+
+    // Bottom sheets (block editor, export picker) are shown/hidden with a
+    // slide animation rather than an abrupt display:none toggle.
+    function openSheet(sheetBackdrop) {
+      sheetBackdrop.hidden = false;
+      requestAnimationFrame(() => sheetBackdrop.classList.add('show'));
+    }
+
+    function closeSheet(sheetBackdrop) {
+      sheetBackdrop.classList.remove('show');
+      setTimeout(() => { sheetBackdrop.hidden = true; }, 220);
+    }
+
+    /* =========================================================================
+       4.6. TOUCH-FRIENDLY REORDERING (Pointer Events)
+       ========================================================================= */
+    // HTML5 drag-and-drop (dragstart/dragover/drop) is effectively a
+    // mouse-only API - iOS Safari doesn't support it via touch at all, and
+    // Android's support is inconsistent. Pointer Events fire uniformly for
+    // touch, mouse and pen, so reordering actually works on the phones this
+    // app targets. Attached once per container (event delegation), so it
+    // keeps working across re-renders without re-binding per item.
+    function setupReorderable(container, itemSelector, onReorder) {
+      container.addEventListener('pointerdown', (e) => {
+        const handle = e.target.closest('.drag-handle');
+        if (!handle || !container.contains(handle)) return;
+        const draggingEl = handle.closest(itemSelector);
+        if (!draggingEl) return;
+
+        const items = Array.from(container.querySelectorAll(itemSelector));
+        const startIndex = items.indexOf(draggingEl);
+        if (startIndex === -1 || items.length < 2) return;
+
+        e.preventDefault();
+        const startY = e.clientY;
+        const itemHeight = items[1].getBoundingClientRect().top - items[0].getBoundingClientRect().top
+          || draggingEl.getBoundingClientRect().height;
+        let currentIndex = startIndex;
+
+        draggingEl.classList.add('dragging');
+        handle.setPointerCapture(e.pointerId);
+
+        const onMove = (moveEvent) => {
+          const deltaY = moveEvent.clientY - startY;
+          draggingEl.style.transform = `translateY(${deltaY}px)`;
+
+          const rawOffset = Math.round(deltaY / itemHeight);
+          const newIndex = Math.min(items.length - 1, Math.max(0, startIndex + rawOffset));
+
+          items.forEach((sib, i) => {
+            if (sib === draggingEl) return;
+            let shift = 0;
+            if (newIndex > startIndex && i > startIndex && i <= newIndex) shift = -1;
+            else if (newIndex < startIndex && i < startIndex && i >= newIndex) shift = 1;
+            sib.style.transform = shift ? `translateY(${shift * itemHeight}px)` : '';
+          });
+
+          currentIndex = newIndex;
+        };
+
+        const onUp = () => {
+          handle.releasePointerCapture(e.pointerId);
+          handle.removeEventListener('pointermove', onMove);
+          handle.removeEventListener('pointerup', onUp);
+          handle.removeEventListener('pointercancel', onUp);
+
+          items.forEach(el => {
+            el.style.transform = '';
+            el.classList.remove('dragging');
+          });
+
+          if (currentIndex !== startIndex) {
+            onReorder(startIndex, currentIndex);
+          }
+        };
+
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onUp);
+        handle.addEventListener('pointercancel', onUp);
+      });
+    }
+
+    /* =========================================================================
+       4.7. RIPPLE + SLIDER VALUE BUBBLE
+       ========================================================================= */
+    // A single delegated listener covers every button, including ones
+    // rendered dynamically later (routine/block cards).
+    document.addEventListener('pointerdown', (e) => {
+      const btn = e.target.closest('.btn');
+      if (!btn) return;
+
+      const rect = btn.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple-effect';
+      ripple.style.width = ripple.style.height = `${size}px`;
+      ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+      ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+      btn.appendChild(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove());
+    });
+
+    // Shows the slider's current value in a small bubble that follows the
+    // thumb while dragging, reusing whatever text is already in the
+    // associated label (so formatting logic isn't duplicated).
+    function attachSliderBubble(inputId, labelId) {
+      const input = document.getElementById(inputId);
+      const label = document.getElementById(labelId);
+      const wrapper = input.parentElement;
+      wrapper.style.position = 'relative';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'slider-bubble';
+      wrapper.insertBefore(bubble, input);
+
+      function update() {
+        const min = parseFloat(input.min) || 0;
+        const max = parseFloat(input.max) || 100;
+        const percent = max > min ? (parseFloat(input.value) - min) / (max - min) : 0;
+        bubble.style.left = `${percent * 100}%`;
+        // Anchored to the slider's own offset within the wrapper (not the
+        // wrapper's edge), since the wrapper also contains the label above it.
+        bubble.style.top = `${input.offsetTop}px`;
+        bubble.textContent = label.textContent;
+      }
+
+      input.addEventListener('input', update);
+      input.addEventListener('pointerdown', () => {
+        update();
+        bubble.classList.add('visible');
+      });
+      window.addEventListener('pointerup', () => bubble.classList.remove('visible'));
+    }
+
     /* =========================================================================
        5. UI HANDLER (DOM Interactions & Rendering)
        ========================================================================= */
@@ -1403,6 +1883,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       bindEvents() {
         // Tab switching
+        const fab = document.getElementById('fab-new-routine');
         const tabs = [
           [this.tabRoutines, this.secRoutines],
           [this.tabSettings, this.secSettings],
@@ -1417,13 +1898,19 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             });
             btn.classList.add('active');
             sec.classList.add('active');
+            // The FAB is the Routines tab's primary action - it has no
+            // meaning on the other tabs.
+            fab.hidden = sec !== this.secRoutines;
           });
         });
 
         // Routine CRUD
-        document.getElementById('btn-create-routine').addEventListener('click', () => this.createRoutine());
+        fab.addEventListener('click', () => this.createRoutine());
         document.getElementById('btn-save-routine').addEventListener('click', () => this.saveRoutine());
         document.getElementById('btn-cancel-routine').addEventListener('click', () => this.cancelRoutineEdit());
+
+        setupReorderable(this.routinesContainer, '.item-card', (from, to) => this.reorderRoutines(from, to));
+        setupReorderable(this.blockListContainer, '.item-card', (from, to) => this.reorderBlocks(from, to));
 
         // Block Modal Triggers
         document.getElementById('btn-add-rep-block').addEventListener('click', () => this.openBlockModal('rep'));
@@ -1468,6 +1955,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.bindDiscreteSlider('countdown-threshold-range', 'countdown-threshold-val', 'countdownThreshold', COUNTDOWN_THRESHOLD_OPTIONS);
         this.bindDiscreteSlider('time-remaining-range', 'time-remaining-val', 'timeRemainingThreshold', TIME_REMAINING_THRESHOLD_OPTIONS);
         this.bindDiscreteSlider('remaining-interval-range', 'remaining-interval-val', 'remainingTimeInterval', REMAINING_TIME_INTERVAL_OPTIONS);
+
+        [
+          ['rate-range', 'rate-val'],
+          ['pitch-range', 'pitch-val'],
+          ['volume-range', 'vol-val'],
+          ['countdown-threshold-range', 'countdown-threshold-val'],
+          ['time-remaining-range', 'time-remaining-val'],
+          ['remaining-interval-range', 'remaining-interval-val']
+        ].forEach(([inputId, labelId]) => attachSliderBubble(inputId, labelId));
 
         document.getElementById('btn-test-voice').addEventListener('click', () => {
           audioEngine.speak("Workout TTS is ready.");
@@ -1534,11 +2030,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       renderRoutinesList() {
         this.routinesContainer.innerHTML = '';
-        state.routines.forEach((routine, index) => {
+        state.routines.forEach((routine) => {
           const item = document.createElement('div');
           item.className = 'item-card';
-          item.draggable = true;
-          item.dataset.index = index;
           item.innerHTML = `
             <span class="drag-handle" title="Drag to reorder">${DRAG_HANDLE_SVG}</span>
             <div class="item-content">
@@ -1546,33 +2040,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               <div class="item-actions-grid">
                 <span class="grid-tile">${routine.blocks.length} Blocks</span>
                 <button class="btn btn-primary btn-sm" onclick="ui.startRoutine('${routine.id}')">Start</button>
-                <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">✏️</button>
-                <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">📝</button>
-                <button class="btn btn-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')">✕</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">${EDIT_ICON_SVG}</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">${COPY_ICON_SVG}</button>
+                <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')" title="Delete">${DELETE_ICON_SVG}</button>
               </div>
             </div>
           `;
-
-          // Drag and Drop reordering events
-          item.addEventListener('dragstart', (e) => {
-            item.classList.add('dragging');
-            e.dataTransfer.setData('text/plain', index);
-          });
-
-          item.addEventListener('dragend', () => {
-            item.classList.remove('dragging');
-          });
-
-          item.addEventListener('dragover', (e) => {
-            e.preventDefault();
-          });
-
-          item.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-            this.reorderRoutines(fromIndex, index);
-          });
-
           this.routinesContainer.appendChild(item);
         });
       },
@@ -1620,7 +2093,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       saveRoutine() {
         const name = this.routineNameInput.value.trim();
         if (!name) {
-          alert('Routine name cannot be empty.');
+          showSnackbar('Routine name cannot be empty.');
           return;
         }
 
@@ -1637,22 +2110,29 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         saveRoutines();
         this.closeEditor();
+        showSnackbar('Routine saved.');
       },
 
-      cancelRoutineEdit() {
+      async cancelRoutineEdit() {
         if (state.editingRoutineDraft && state.editingRoutineDraft.blocks.length === 0) {
-          const confirm = window.confirm('This routine has no blocks. Are you sure you want to discard it?');
-          if (!confirm) return;
+          const discard = await showConfirmDialog({
+            title: 'Discard routine?',
+            message: 'This routine has no blocks. Are you sure you want to discard it?',
+            confirmLabel: 'Discard',
+            danger: true
+          });
+          if (!discard) return;
         }
         this.closeEditor();
       },
 
-      handleEditorBack() {
+      async handleEditorBack() {
         const draft = state.editingRoutineDraft;
         const message = (draft && draft.blocks.length === 0)
           ? 'This routine has no blocks. Discard it?'
           : 'Discard changes to this routine?';
-        if (confirm(message)) {
+        const discard = await showConfirmDialog({ title: 'Discard changes?', message, confirmLabel: 'Discard', danger: true });
+        if (discard) {
           this.closeEditor();
         }
       },
@@ -1678,8 +2158,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.renderRoutinesList();
       },
 
-      deleteRoutine(id) {
-        if (confirm('Are you sure you want to delete this routine?')) {
+      async deleteRoutine(id) {
+        const confirmed = await showConfirmDialog({
+          title: 'Delete routine?',
+          message: 'Are you sure you want to delete this routine?',
+          confirmLabel: 'Delete',
+          danger: true
+        });
+        if (confirmed) {
           state.routines = state.routines.filter(r => r.id !== id);
           saveRoutines();
           this.renderRoutinesList();
@@ -1693,11 +2179,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           return;
         }
 
-        routine.blocks.forEach((block, index) => {
+        routine.blocks.forEach((block) => {
           const item = document.createElement('div');
           item.className = 'item-card';
-          item.draggable = true;
-          item.dataset.index = index;
 
           let details = '';
           if (block.type === 'rep') {
@@ -1712,33 +2196,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               <div class="item-title">${escapeHTML(block.title)} <span class="type-badge">(${block.type.toUpperCase()})</span></div>
               <div class="item-actions-grid">
                 <span class="grid-tile align-left">${details}</span>
-                <button class="btn btn-icon btn-sm" onclick="ui.openBlockModal(null, '${block.id}')" title="Edit Block">✏️</button>
-                <button class="btn btn-icon btn-sm" onclick="ui.duplicateBlock('${block.id}')" title="Duplicate Block">📝</button>
-                <button class="btn btn-danger btn-sm" onclick="ui.deleteBlock('${block.id}')">✕</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.openBlockModal(null, '${block.id}')" title="Edit Block">${EDIT_ICON_SVG}</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.duplicateBlock('${block.id}')" title="Duplicate Block">${COPY_ICON_SVG}</button>
+                <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteBlock('${block.id}')" title="Delete Block">${DELETE_ICON_SVG}</button>
               </div>
             </div>
           `;
-
-          // Drag and Drop reordering events
-          item.addEventListener('dragstart', (e) => {
-            item.classList.add('dragging');
-            e.dataTransfer.setData('text/plain', index);
-          });
-
-          item.addEventListener('dragend', () => {
-            item.classList.remove('dragging');
-          });
-
-          item.addEventListener('dragover', (e) => {
-            e.preventDefault();
-          });
-
-          item.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-            const toIndex = index;
-            this.reorderBlocks(fromIndex, toIndex);
-          });
 
           this.blockListContainer.appendChild(item);
         });
@@ -1782,13 +2245,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
 
         this.toggleBlockModalFields(type);
-        this.blockModal.hidden = false;
+        openSheet(this.blockModal);
         pushBackGuard(() => this.handleBlockModalBack());
       },
 
-      handleBlockModalBack() {
+      async handleBlockModalBack() {
         const message = state.editingBlockId ? 'Discard changes to this block?' : 'Discard this new block?';
-        if (confirm(message)) {
+        const discard = await showConfirmDialog({ title: 'Discard changes?', message, confirmLabel: 'Discard', danger: true });
+        if (discard) {
           this.closeBlockModal();
         }
       },
@@ -1797,7 +2261,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         if (type === 'rep') {
           this.repFields.classList.remove('hidden');
           this.restFields.classList.add('hidden');
-          document.getElementById('rep-tip').style.display = 'block';
+          document.getElementById('rep-tip').style.display = 'flex';
           this.blockTitleInput.placeholder = 'e.g., Push-ups';
         } else {
           this.repFields.classList.add('hidden');
@@ -1808,7 +2272,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       },
 
       closeBlockModal() {
-        this.blockModal.hidden = true;
+        closeSheet(this.blockModal);
         state.editingBlockId = null;
         closeTopBackGuard();
       },
@@ -1836,7 +2300,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         const title = this.blockTitleInput.value.trim();
 
         if (!title) {
-          alert('Block title cannot be empty.');
+          showSnackbar('Block title cannot be empty.');
           return;
         }
 
@@ -1851,11 +2315,11 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           const pace = parseFloat(this.blockPaceInput.value);
 
           if (reps < 1) {
-            alert('Total Reps must be at least 1.');
+            showSnackbar('Total Reps must be at least 1.');
             return;
           }
           if (pace <= 0) {
-            alert('Pace must be greater than 0 seconds.');
+            showSnackbar('Pace must be greater than 0 seconds.');
             return;
           }
 
@@ -1888,7 +2352,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       startRoutine(id) {
         const routine = state.routines.find(r => r.id === id);
         if (!routine || routine.blocks.length === 0) {
-          alert('Please add at least one block to start this routine.');
+          showSnackbar('Please add at least one block to start this routine.');
           return;
         }
         executionEngine.start(routine);
@@ -1906,8 +2370,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
       },
 
-      handlePlayerBack() {
-        if (confirm('Stop this workout?')) {
+      async handlePlayerBack() {
+        const confirmed = await showConfirmDialog({ title: 'Stop workout?', message: 'Stop this workout?', confirmLabel: 'Stop', danger: true });
+        if (confirmed) {
           executionEngine.stop();
         }
       },
@@ -1958,9 +2423,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               this.loadSettingsUI();
             }
             this.renderRoutinesList();
-            alert('Backup data successfully restored!');
+            showSnackbar('Backup data successfully restored!');
           } catch (err) {
-            alert('Invalid backup file format.');
+            showSnackbar('Invalid backup file format.');
           }
         };
         if (event.target.files[0]) {
@@ -1994,12 +2459,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           listContainer.appendChild(label);
         });
 
-        modal.hidden = false;
+        openSheet(modal);
         pushBackGuard(() => this.closeExportModal());
       },
 
       closeExportModal() {
-        document.getElementById('export-routines-modal').hidden = true;
+        closeSheet(document.getElementById('export-routines-modal'));
         closeTopBackGuard();
       },
 
@@ -2008,7 +2473,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         const checkboxes = modal.querySelectorAll('input[type="checkbox"]:checked');
 
         if (checkboxes.length === 0) {
-          alert('Please select at least one routine to export.');
+          showSnackbar('Please select at least one routine to export.');
           return;
         }
 
@@ -2036,7 +2501,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           try {
             const importedData = JSON.parse(e.target.result);
             if (!importedData.routines || !Array.isArray(importedData.routines)) {
-              alert('Invalid routine file format.');
+              showSnackbar('Invalid routine file format.');
               return;
             }
 
@@ -2068,9 +2533,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
             saveRoutines();
             this.renderRoutinesList();
-            alert('Routines successfully imported!');
+            showSnackbar('Routines successfully imported!');
           } catch (err) {
-            alert('Invalid routine file format: ' + err.message);
+            showSnackbar('Invalid routine file format: ' + err.message);
           }
         };
         if (event.target.files[0]) {
@@ -2080,9 +2545,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       copyLLMPrompt() {
         navigator.clipboard.writeText(LLM_ROUTINE_PROMPT).then(() => {
-          alert('LLM prompt copied to clipboard!');
+          showSnackbar('LLM prompt copied to clipboard!');
         }).catch(err => {
-          alert('Failed to copy prompt: ' + err.message);
+          showSnackbar('Failed to copy prompt: ' + err.message);
         });
       },
 
@@ -2096,7 +2561,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             } else if (importedData.blocks) {
               importedRoutines = [importedData];
             } else {
-              alert('Invalid routine JSON format.');
+              showSnackbar('Invalid routine JSON format.');
               return;
             }
 
@@ -2118,12 +2583,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
             saveRoutines();
             this.renderRoutinesList();
-            alert('Routine successfully imported from clipboard!');
+            showSnackbar('Routine successfully imported from clipboard!');
           } catch (err) {
-            alert('Invalid JSON on clipboard: ' + err.message);
+            showSnackbar('Invalid JSON on clipboard: ' + err.message);
           }
         }).catch(err => {
-          alert('Failed to read clipboard: ' + err.message);
+          showSnackbar('Failed to read clipboard: ' + err.message);
         });
       }
     };
