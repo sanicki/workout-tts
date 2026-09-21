@@ -1201,19 +1201,29 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       history.back();
     }
 
-    window.addEventListener('popstate', () => {
+    window.addEventListener('popstate', (event) => {
       if (suppressedPopstates > 0) {
         suppressedPopstates--;
         return;
       }
 
       const onBack = backGuardStack[backGuardStack.length - 1];
-      if (!onBack) return; // No overlay open - let native back/exit behavior stand.
+      if (onBack) {
+        // Re-arm this guard's history entry; onBack() decides whether to keep
+        // the overlay open (do nothing) or close it (which pops the guard for
+        // real).
+        history.pushState({ guardDepth: backGuardStack.length }, '');
+        onBack();
+        return;
+      }
 
-      // Re-arm this guard's history entry; onBack() decides whether to keep the
-      // overlay open (do nothing) or close it (which pops the guard for real).
-      history.pushState({ guardDepth: backGuardStack.length }, '');
-      onBack();
+      // No overlay open - this is bottom-nav tab history. Retrace the user's
+      // actual tab-visit order (Android's own bottom-navigation back
+      // guidance), rather than jumping straight to Routines from anywhere.
+      // Landing on a state with no tab info means every tab-switch entry has
+      // been popped - i.e. we're back at Routines, where native back-to-exit
+      // takes over on the next press.
+      ui.activateTab((event.state && event.state.tab) || 'routines');
     });
 
     /* =========================================================================
@@ -1820,6 +1830,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       secSettings: document.getElementById('sec-settings'),
       secBackup: document.getElementById('sec-backup'),
 
+      get tabList() {
+        return [
+          ['routines', this.tabRoutines, this.secRoutines],
+          ['settings', this.tabSettings, this.secSettings],
+          ['backup', this.tabBackup, this.secBackup]
+        ];
+      },
+
       // Routine Management View
       routineListView: document.getElementById('routine-list-view'),
       routineEditorView: document.getElementById('routine-editor-view'),
@@ -1897,22 +1915,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       },
 
       bindEvents() {
-        // Tab switching
-        const tabs = [
-          [this.tabRoutines, this.secRoutines],
-          [this.tabSettings, this.secSettings],
-          [this.tabBackup, this.secBackup]
-        ];
-
-        tabs.forEach(([btn, sec]) => {
+        // Tab switching. Each switch pushes a history entry so the back
+        // gesture retraces the user's actual tab-visit order (see the
+        // NAVIGATION GUARD section's popstate handler) rather than jumping
+        // straight to Routines from wherever they are.
+        this.tabList.forEach(([tabId, btn]) => {
           btn.addEventListener('click', () => {
-            tabs.forEach(([b, s]) => {
-              b.classList.remove('active');
-              s.classList.remove('active');
-            });
-            btn.classList.add('active');
-            sec.classList.add('active');
-            this.updateFabVisibility();
+            if (btn.classList.contains('active')) return;
+            this.activateTab(tabId);
+            history.pushState({ tab: tabId }, '');
           });
         });
 
@@ -2177,6 +2188,18 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         const onRoutinesTab = this.secRoutines.classList.contains('active');
         const editorOpen = !this.routineEditorView.classList.contains('hidden');
         fab.hidden = !onRoutinesTab || editorOpen;
+      },
+
+      // Switches the visible tab without touching history - used both by the
+      // tab-click handler (which pushes separately, since only a click
+      // should add a new history entry) and by the popstate handler when
+      // retracing tab-visit history on back.
+      activateTab(tabId) {
+        this.tabList.forEach(([id, btn, sec]) => {
+          btn.classList.toggle('active', id === tabId);
+          sec.classList.toggle('active', id === tabId);
+        });
+        this.updateFabVisibility();
       },
 
       duplicateRoutine(id) {
