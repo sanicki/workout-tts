@@ -465,6 +465,11 @@
     .item-actions-row {
       display: flex;
       align-items: center;
+      /* Right-aligned by default (Activity cards, which have no Play to
+         split against) so the icon cluster lands at the same x-position as
+         the Edit/Duplicate/Delete cluster on Routine cards; .split
+         overrides this to push Play to the opposite edge instead. */
+      justify-content: flex-end;
       gap: 0.5rem;
     }
 
