@@ -25,6 +25,7 @@
       --accent: #0284c7;
       --accent-hover: #0369a1;
       --accent-active: #075985;
+      --accent-soft: rgba(2, 132, 199, 0.15);
       --danger: #ef4444;
       --danger-hover: #dc2626;
       --warning: #f59e0b;
@@ -60,6 +61,7 @@
         --accent: #38bdf8;
         --accent-hover: #0284c7;
         --accent-active: #0369a1;
+        --accent-soft: rgba(56, 189, 248, 0.18);
         --danger: #ef4444;
         --danger-hover: #dc2626;
         --warning: #f59e0b;
@@ -133,8 +135,24 @@
       display: block;
     }
 
+    /* Material's NavigationBar pairs the active color change with a
+       rounded "pill" indicator behind just the icon (not the label) -
+       color alone was the only cue before this. */
+    nav button .nav-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      transition: background-color 0.2s ease;
+    }
+
     nav button.active {
       color: var(--accent);
+    }
+
+    nav button.active .nav-icon {
+      background-color: var(--accent-soft);
     }
 
     /* Main Container */
@@ -365,6 +383,13 @@
       gap: 0.5rem;
     }
 
+    /* Marks a non-.btn element (the Favorites picker's tappable row) as a
+       ripple target too - same positioning/clipping .btn gets for free. */
+    .rippable {
+      position: relative;
+      overflow: hidden;
+    }
+
     /* Material tap ripple - a short-lived circle that expands from the
        pointer's position, tinted with the button's own foreground color. */
     .ripple-effect {
@@ -419,6 +444,30 @@
 
     .btn-danger:hover {
       background-color: var(--danger-hover);
+    }
+
+    /* Material's Basic Dialog convention pairs two text buttons (no fill,
+       no border) rather than two filled ones, so a small centered dialog's
+       two choices don't read as equally-weighted solid blocks competing
+       for attention. */
+    .btn-text {
+      background: transparent;
+      color: var(--accent);
+    }
+
+    .btn-text:hover {
+      background-color: var(--card-border);
+    }
+
+    .btn-text-danger {
+      color: var(--danger);
+    }
+
+    /* The confirming action still needs to read as the more prominent
+       choice even though both are now the same text-button style -
+       bolder weight does that without reintroducing a filled background. */
+    .btn-text-confirm {
+      font-weight: 800;
     }
 
     .btn-sm {
@@ -768,6 +817,26 @@
       transform: translateY(0);
     }
 
+    /* Material's sheet spec expects this visual affordance for "swipe down
+       to dismiss" - most users will instinctively try that gesture on a
+       bottom sheet whether or not the handle is there to invite it. */
+    .sheet-drag-handle {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      padding: 0.75rem 0 0.25rem;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .sheet-drag-handle::after {
+      content: '';
+      width: 36px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--card-border);
+    }
+
     .sheet-header {
       flex-shrink: 0;
       padding: 1.5rem 1.5rem 1rem;
@@ -1017,19 +1086,28 @@
 
         <div class="form-group">
           <label for="countdown-threshold-range">Countdown Threshold: <span id="countdown-threshold-val">3 seconds</span></label>
-          <input type="range" id="countdown-threshold-range" min="0" max="10" step="1" value="3">
+          <input type="range" id="countdown-threshold-range" min="0" max="10" step="1" value="3" list="countdown-threshold-ticks">
+          <datalist id="countdown-threshold-ticks">
+            <option value="0"></option><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option><option value="6"></option><option value="7"></option><option value="8"></option><option value="9"></option><option value="10"></option>
+          </datalist>
           <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Announces countdown TTS in final X seconds (e.g., "3, 2, 1")</p>
         </div>
 
         <div class="form-group">
           <label for="time-remaining-range">For time-based exercises, announce remaining time: <span id="time-remaining-val">After 50% complete</span></label>
-          <input type="range" id="time-remaining-range" min="0" max="4" step="1" value="2">
+          <input type="range" id="time-remaining-range" min="0" max="4" step="1" value="2" list="time-remaining-ticks">
+          <datalist id="time-remaining-ticks">
+            <option value="0"></option><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option>
+          </datalist>
           <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Sets when remaining-time announcements are allowed to begin</p>
         </div>
 
         <div class="form-group">
           <label for="remaining-interval-range">Remaining Time Announcement Interval: <span id="remaining-interval-val">Every 15 seconds</span></label>
-          <input type="range" id="remaining-interval-range" min="0" max="4" step="1" value="1">
+          <input type="range" id="remaining-interval-range" min="0" max="4" step="1" value="1" list="remaining-interval-ticks">
+          <datalist id="remaining-interval-ticks">
+            <option value="0"></option><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option>
+          </datalist>
           <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">How often to repeat the remaining-time announcement during long time-based exercises</p>
         </div>
       </div>
@@ -1141,6 +1219,7 @@
   <!-- Bottom sheet for Selecting Routines to Export -->
   <div id="export-routines-modal" class="sheet-backdrop" hidden>
     <div class="sheet">
+      <div class="sheet-drag-handle"></div>
       <div class="sheet-header">
         <h3>Select Routines to Export</h3>
         <p class="sheet-description">Choose which routines you want to export:</p>
@@ -1160,6 +1239,7 @@
   <!-- Bottom sheet for Adding/Editing Activities -->
   <div id="activity-modal" class="sheet-backdrop" hidden>
     <div class="sheet">
+      <div class="sheet-drag-handle"></div>
       <div class="sheet-header">
         <h3 id="modal-title">Configure Activity</h3>
       </div>
@@ -1229,6 +1309,7 @@
   <!-- Bottom sheet for picking a Favorite Activity to reuse in the current routine -->
   <div id="favorites-picker-modal" class="sheet-backdrop" hidden>
     <div class="sheet">
+      <div class="sheet-drag-handle"></div>
       <div class="sheet-header">
         <h3>Favorite Activities</h3>
         <p class="sheet-description">Tap a favorite to add a copy to this routine.</p>
@@ -2022,8 +2103,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             <h3>${escapeHTML(title)}</h3>
             <p>${escapeHTML(message)}</p>
             <div class="dialog-actions">
-              <button class="btn btn-secondary" data-action="cancel">${escapeHTML(cancelLabel)}</button>
-              <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-action="confirm">${escapeHTML(confirmLabel)}</button>
+              <button class="btn btn-text" data-action="cancel">${escapeHTML(cancelLabel)}</button>
+              <button class="btn btn-text btn-text-confirm ${danger ? 'btn-text-danger' : ''}" data-action="confirm">${escapeHTML(confirmLabel)}</button>
             </div>
           </div>
         `;
@@ -2132,13 +2213,72 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       });
     }
 
+    // Bottom sheets support the same swipe-down-to-dismiss gesture Material's
+    // spec expects, via the drag handle at the top of the sheet. Dragging
+    // past a threshold or with enough velocity triggers the sheet's own
+    // close handler - the same one its Cancel/Close button and the back
+    // gesture use - so a dirty-checked sheet (the activity modal) still
+    // confirms before discarding rather than the swipe bypassing that.
+    function setupSheetDragToDismiss(sheetBackdropEl, onDismiss) {
+      const handleEl = sheetBackdropEl.querySelector('.sheet-drag-handle');
+      const sheetEl = sheetBackdropEl.querySelector('.sheet');
+      if (!handleEl || !sheetEl) return;
+
+      handleEl.addEventListener('pointerdown', (e) => {
+        const startY = e.clientY;
+        let lastY = startY;
+        let lastTime = performance.now();
+        let velocity = 0;
+        let dragDistance = 0;
+
+        handleEl.setPointerCapture(e.pointerId);
+        sheetEl.style.transition = 'none';
+
+        const onMove = (moveEvent) => {
+          dragDistance = Math.max(0, moveEvent.clientY - startY);
+          sheetEl.style.transform = `translateY(${dragDistance}px)`;
+
+          const now = performance.now();
+          const dt = now - lastTime;
+          if (dt > 0) velocity = (moveEvent.clientY - lastY) / dt;
+          lastY = moveEvent.clientY;
+          lastTime = now;
+        };
+
+        const onUp = () => {
+          handleEl.releasePointerCapture(e.pointerId);
+          handleEl.removeEventListener('pointermove', onMove);
+          handleEl.removeEventListener('pointerup', onUp);
+          handleEl.removeEventListener('pointercancel', onUp);
+          sheetEl.style.transition = '';
+          sheetEl.style.transform = '';
+
+          const dismissThreshold = sheetEl.offsetHeight * 0.3;
+          // Velocity alone can't trigger a dismiss below this distance - a
+          // single noisy pointermove sample (near-zero elapsed time over
+          // even a tiny movement) can otherwise register a spuriously high
+          // velocity and dismiss on what was actually a negligible nudge.
+          const minFlickDistance = 24;
+          if (dragDistance > dismissThreshold || (dragDistance > minFlickDistance && velocity > 0.5)) {
+            onDismiss();
+          }
+        };
+
+        handleEl.addEventListener('pointermove', onMove);
+        handleEl.addEventListener('pointerup', onUp);
+        handleEl.addEventListener('pointercancel', onUp);
+      });
+    }
+
     /* =========================================================================
        4.7. RIPPLE + SLIDER VALUE BUBBLE
        ========================================================================= */
     // A single delegated listener covers every button, including ones
-    // rendered dynamically later (routine/activity cards).
+    // rendered dynamically later (routine/activity cards), plus any
+    // non-.btn element explicitly marked .rippable (the Favorites picker's
+    // whole-row tap target).
     document.addEventListener('pointerdown', (e) => {
-      const btn = e.target.closest('.btn');
+      const btn = e.target.closest('.btn, .rippable');
       if (!btn) return;
 
       const rect = btn.getBoundingClientRect();
@@ -2314,6 +2454,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         // Favorite Activities Picker
         document.getElementById('btn-from-favorites').addEventListener('click', () => this.showFavoritesPicker());
         document.getElementById('btn-cancel-favorites-picker').addEventListener('click', () => this.closeFavoritesPicker());
+
+        setupSheetDragToDismiss(this.activityModal, () => this.handleActivityModalBack());
+        setupSheetDragToDismiss(this.favoritesPickerModal, () => this.closeFavoritesPicker());
+        setupSheetDragToDismiss(document.getElementById('export-routines-modal'), () => this.closeExportModal());
 
         this.activityTypeSelect.addEventListener('change', (e) => {
           this.toggleActivityModalFields(e.target.value);
@@ -2946,7 +3090,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           const badgeLabel = ACTIVITY_TYPE_BADGE_LABELS[favItem.type] || favItem.type.toUpperCase();
 
           item.innerHTML = `
-            <div class="item-content" style="cursor: pointer;" onclick="ui.addFromFavorites('${favItem.id}')">
+            <div class="item-content rippable" style="cursor: pointer;" onclick="ui.addFromFavorites('${favItem.id}')">
               <div class="item-title">${escapeHTML(favItem.title)} <span class="type-badge">(${badgeLabel})</span></div>
               <div style="font-size: 0.85rem; color: var(--text-muted);">${details}</div>
             </div>
