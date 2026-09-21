@@ -342,13 +342,17 @@
       font-size: 0.85rem;
     }
 
+    /* Material's default icon button has no border at all - just the icon,
+       with a background tint on hover/press for tap feedback. A row of
+       bordered "chips" reads as a wall of boxes; plain icons read as a row
+       of actions. */
     .btn-icon {
       padding: 0.4rem 0.6rem;
       min-width: 44px;
       min-height: 44px;
       background: transparent;
       color: var(--text-muted);
-      border: 1px solid var(--card-border);
+      border: none;
     }
 
     .btn-icon:hover {
@@ -356,12 +360,15 @@
       background-color: var(--card-border);
     }
 
-    /* A destructive icon button keeps the same outlined shape as its Edit/
-       Duplicate neighbors - only the color signals "danger" - rather than a
-       solid filled block that visually dominates the row. */
+    /* Color alone signals meaning, per Material's icon-button convention:
+       the primary action (Start) in accent color, destructive (Delete) in
+       the danger color - no border or fill needed to tell them apart. */
+    .btn-icon-primary {
+      color: var(--accent);
+    }
+
     .btn-icon-danger {
       color: var(--danger);
-      border-color: var(--danger);
     }
 
     .btn-icon-danger:hover {
@@ -438,6 +445,8 @@
       gap: 0.5rem;
     }
 
+    /* Plain text, not a bordered tile - this cell isn't tappable, so giving
+       it a box made it look like a fourth button. */
     .grid-tile {
       display: flex;
       align-items: center;
@@ -445,8 +454,7 @@
       text-align: center;
       padding: 0.4rem 0.6rem;
       min-height: 44px;
-      border-radius: 8px;
-      border: 1px solid var(--card-border);
+      min-width: 0;
       color: var(--text-muted);
       font-size: 0.8rem;
       line-height: 1.3;
@@ -460,6 +468,7 @@
 
     .item-actions-grid .btn {
       width: 100%;
+      min-width: 0;
       min-height: 44px;
     }
 
@@ -1842,6 +1851,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.bindEvents();
         this.renderRoutinesList();
         this.loadSettingsUI();
+        this.updateFabVisibility();
         this.registerServiceWorker();
       },
 
@@ -1888,7 +1898,6 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       bindEvents() {
         // Tab switching
-        const fab = document.getElementById('fab-new-routine');
         const tabs = [
           [this.tabRoutines, this.secRoutines],
           [this.tabSettings, this.secSettings],
@@ -1903,14 +1912,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             });
             btn.classList.add('active');
             sec.classList.add('active');
-            // The FAB is the Routines tab's primary action - it has no
-            // meaning on the other tabs.
-            fab.hidden = sec !== this.secRoutines;
+            this.updateFabVisibility();
           });
         });
 
         // Routine CRUD
-        fab.addEventListener('click', () => this.createRoutine());
+        document.getElementById('fab-new-routine').addEventListener('click', () => this.createRoutine());
         document.getElementById('btn-save-routine').addEventListener('click', () => this.saveRoutine());
         document.getElementById('btn-cancel-routine').addEventListener('click', () => this.handleEditorBack());
 
@@ -2044,7 +2051,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               <div class="item-title">${escapeHTML(routine.name)}</div>
               <div class="item-actions-grid">
                 <span class="grid-tile">${routine.blocks.length} Blocks</span>
-                <button class="btn btn-primary btn-sm" onclick="ui.startRoutine('${routine.id}')" title="Start Routine">${PLAY_ICON_SVG}</button>
+                <button class="btn btn-icon btn-icon-primary btn-sm" onclick="ui.startRoutine('${routine.id}')" title="Start Routine">${PLAY_ICON_SVG}</button>
                 <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">${EDIT_ICON_SVG}</button>
                 <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">${COPY_ICON_SVG}</button>
                 <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')" title="Delete">${DELETE_ICON_SVG}</button>
@@ -2078,6 +2085,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         this.routineListView.classList.add('hidden');
         this.routineEditorView.classList.remove('hidden');
+        this.updateFabVisibility();
         pushBackGuard(() => this.handleEditorBack());
       },
 
@@ -2094,6 +2102,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         this.routineListView.classList.add('hidden');
         this.routineEditorView.classList.remove('hidden');
+        this.updateFabVisibility();
         pushBackGuard(() => this.handleEditorBack());
       },
 
@@ -2156,7 +2165,18 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.routineEditorView.classList.add('hidden');
         this.routineListView.classList.remove('hidden');
         this.renderRoutinesList();
+        this.updateFabVisibility();
         closeTopBackGuard();
+      },
+
+      // The FAB (new routine) only makes sense on the Routines tab, and only
+      // while looking at the list - not while the editor itself is open,
+      // where it would float on top of the Save/Cancel row.
+      updateFabVisibility() {
+        const fab = document.getElementById('fab-new-routine');
+        const onRoutinesTab = this.secRoutines.classList.contains('active');
+        const editorOpen = !this.routineEditorView.classList.contains('hidden');
+        fab.hidden = !onRoutinesTab || editorOpen;
       },
 
       duplicateRoutine(id) {
