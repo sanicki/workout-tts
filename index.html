@@ -80,6 +80,60 @@
       }
     }
 
+    /* Explicit theme override (Settings > Appearance) - takes precedence
+       over prefers-color-scheme regardless of source order, since
+       :root[data-theme=...] is more specific than a plain :root rule. No
+       data-theme attribute (the default) means "System": the OS-driven
+       media query above still governs, unchanged. Values are duplicated
+       rather than shared with the media-query block because CSS custom
+       media queries can't be toggled from JS - this attribute selector is
+       the mechanism that lets an explicit choice win either way. */
+    :root[data-theme="light"] {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --accent: #0284c7;
+      --accent-hover: #0369a1;
+      --accent-active: #075985;
+      --accent-soft: rgba(2, 132, 199, 0.15);
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --warning: #f59e0b;
+      --success: #10b981;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --nav-bg: #f1f5f9;
+      --input-bg: #ffffff;
+      --player-bg: #f8fafc;
+      --surface-elevated: #ffffff;
+      --elevation-1: 0 1px 2px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.1);
+      --elevation-2: 0 2px 6px rgba(15,23,42,0.16), 0 1px 2px rgba(15,23,42,0.1);
+      --elevation-3: 0 8px 24px rgba(15,23,42,0.22), 0 2px 8px rgba(15,23,42,0.14);
+    }
+
+    :root[data-theme="dark"] {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --accent-active: #0369a1;
+      --accent-soft: rgba(56, 189, 248, 0.18);
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --warning: #f59e0b;
+      --success: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --nav-bg: #020617;
+      --input-bg: #0f172a;
+      --player-bg: #0f172a;
+      --surface-elevated: #263348;
+      --elevation-1: 0 1px 2px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
+      --elevation-2: 0 2px 6px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3);
+      --elevation-3: 0 8px 24px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.35);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -359,6 +413,37 @@
       transform: translateX(18px);
     }
 
+    /* Segmented Buttons - Material's component for a small set of
+       mutually exclusive choices (here, theme selection), shown as
+       connected pill segments with the selected one raised/filled. */
+    .segmented-control {
+      display: flex;
+      background: var(--card-border);
+      border-radius: 999px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .segmented-option {
+      flex: 1;
+      min-height: 44px;
+      border: none;
+      background: transparent;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .segmented-option.active {
+      background: var(--card-bg);
+      color: var(--accent);
+      box-shadow: var(--elevation-1);
+    }
+
     .favorite-toggle-row {
       display: flex;
       align-items: center;
@@ -366,7 +451,12 @@
       gap: 0.75rem;
     }
 
-    /* Buttons */
+    /* Buttons - Material 3's default shape for Filled/Tonal/Outlined/Text
+       buttons is fully rounded (a "stadium" shape), not a subtly-rounded
+       rectangle. This also correctly cascades to .btn-icon (48x48 square
+       buttons become full circles, matching Material's Icon Button spec)
+       and to .btn-text's hover state (a pill-shaped highlight around plain
+       text, also per spec) since both build on this same base class. */
     .btn {
       position: relative;
       overflow: hidden;
@@ -374,7 +464,7 @@
       align-items: center;
       justify-content: center;
       padding: 0.75rem 1.25rem;
-      border-radius: 8px;
+      border-radius: 999px;
       font-size: 1rem;
       font-weight: 600;
       border: none;
@@ -1038,6 +1128,19 @@
     <!-- TAB 2: Voice & Sound Settings -->
     <section id="sec-settings" class="tab-content">
       <div class="card">
+        <div class="card-title">Appearance</div>
+
+        <div class="form-group">
+          <label>Theme</label>
+          <div class="segmented-control" role="radiogroup" aria-label="Theme">
+            <button type="button" class="segmented-option" data-theme-option="light" role="radio">Light</button>
+            <button type="button" class="segmented-option" data-theme-option="dark" role="radio">Dark</button>
+            <button type="button" class="segmented-option" data-theme-option="system" role="radio">System</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-title">Voice & TTS Controls</div>
         
         <div class="form-group">
@@ -1230,7 +1333,7 @@
         </div>
       </div>
       <div class="sheet-footer row">
-        <button id="btn-cancel-export" class="btn btn-secondary">Cancel</button>
+        <button id="btn-cancel-export" class="btn btn-text">Cancel</button>
         <button id="btn-confirm-export" class="btn btn-primary">Export Selected</button>
       </div>
     </div>
@@ -1300,7 +1403,7 @@
       </div>
 
       <div class="sheet-footer row">
-        <button id="btn-cancel-activity" class="btn btn-secondary">Cancel</button>
+        <button id="btn-cancel-activity" class="btn btn-text">Cancel</button>
         <button id="btn-save-activity" class="btn btn-primary">Save Activity</button>
       </div>
     </div>
@@ -1320,7 +1423,7 @@
         </div>
       </div>
       <div class="sheet-footer row">
-        <button id="btn-cancel-favorites-picker" class="btn btn-secondary">Close</button>
+        <button id="btn-cancel-favorites-picker" class="btn btn-text">Close</button>
       </div>
     </div>
   </div>
@@ -1347,6 +1450,7 @@
     ];
 
     const defaultSettings = {
+      theme: 'system',
       voiceURI: '',
       rate: 1.0,
       pitch: 1.0,
@@ -1396,6 +1500,11 @@
       editingRoutineDraft: null,
       editingActivityId: null
     };
+
+    // Applied here, as early in script execution as possible (well before
+    // DOMContentLoaded/ui.init()), so there's no flash of the wrong theme
+    // between first paint and the rest of the app initializing.
+    applyTheme(state.settings.theme);
 
     const LLM_ROUTINE_PROMPT = `You are creating a structured workout routine from a YouTube video for Workout TTS, an app that acts as a spoken personal trainer: it describes each exercise before the user performs it, then counts them through it aloud.
 
@@ -1512,6 +1621,19 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
     function saveSettings() {
       localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
+    }
+
+    // "System" (the default) leaves no data-theme attribute set, so the
+    // prefers-color-scheme media query keeps governing exactly as before
+    // this setting existed. An explicit Light/Dark choice sets the
+    // attribute, which the :root[data-theme=...] blocks override with
+    // regardless of OS preference.
+    function applyTheme(theme) {
+      if (theme === 'light' || theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', theme);
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
     }
 
     function saveFavorites() {
@@ -2492,6 +2614,16 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         document.getElementById('btn-stop').addEventListener('click', () => executionEngine.stop());
 
         // Settings Bindings
+        document.querySelectorAll('.segmented-option[data-theme-option]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const theme = btn.dataset.themeOption;
+            state.settings.theme = theme;
+            saveSettings();
+            applyTheme(theme);
+            this.updateThemeSegmentedControl();
+          });
+        });
+
         document.getElementById('voice-select').addEventListener('change', (e) => {
           state.settings.voiceURI = e.target.value;
           saveSettings();
@@ -2579,6 +2711,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       },
 
       loadSettingsUI() {
+        this.updateThemeSegmentedControl();
         document.getElementById('rate-range').value = state.settings.rate;
         document.getElementById('rate-val').textContent = state.settings.rate.toFixed(1);
         document.getElementById('pitch-range').value = state.settings.pitch;
@@ -2590,6 +2723,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.loadDiscreteSlider('countdown-threshold-range', 'countdown-threshold-val', 'countdownThreshold', COUNTDOWN_THRESHOLD_OPTIONS);
         this.loadDiscreteSlider('time-remaining-range', 'time-remaining-val', 'timeRemainingThreshold', TIME_REMAINING_THRESHOLD_OPTIONS);
         this.loadDiscreteSlider('remaining-interval-range', 'remaining-interval-val', 'remainingTimeInterval', REMAINING_TIME_INTERVAL_OPTIONS);
+      },
+
+      updateThemeSegmentedControl() {
+        document.querySelectorAll('.segmented-option[data-theme-option]').forEach((btn) => {
+          const isActive = btn.dataset.themeOption === state.settings.theme;
+          btn.classList.toggle('active', isActive);
+          btn.setAttribute('aria-checked', String(isActive));
+        });
       },
 
       renderRoutinesList() {
@@ -3205,6 +3346,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             if (importedData.settings) {
               state.settings = Object.assign({}, defaultSettings, importedData.settings);
               saveSettings();
+              applyTheme(state.settings.theme);
               this.loadSettingsUI();
             }
             if (Array.isArray(importedData.favorites)) {
