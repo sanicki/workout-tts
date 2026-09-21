@@ -516,6 +516,72 @@
       display: none;
     }
 
+    /* Full-screen dialog (Routine editor) - Material's pattern for an
+       open-ended editing task (a list that can grow arbitrarily long),
+       distinct from a bottom sheet's bounded-content assumption. A pinned
+       top app bar carries Cancel/Save so they're reachable regardless of
+       how many activities the body holds; only the body scrolls. */
+    .fullscreen-dialog {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background-color: var(--bg-color);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .fullscreen-dialog[hidden] {
+      display: none;
+    }
+
+    .fullscreen-dialog-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.5rem 0.5rem 0.25rem;
+      padding-top: calc(0.5rem + env(safe-area-inset-top));
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--card-border);
+      box-shadow: var(--elevation-1);
+    }
+
+    .fullscreen-dialog-title {
+      flex: 1;
+      font-size: 1.1rem;
+      font-weight: 700;
+      min-width: 0;
+    }
+
+    .fullscreen-dialog-action {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 0.5rem 0.75rem;
+      min-height: 44px;
+      cursor: pointer;
+    }
+
+    .fullscreen-dialog-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 1rem;
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Without this, a flex child's default flex-shrink:1 lets it get
+       squeezed to fit the body's available space instead of the body
+       scrolling past it. */
+    .fullscreen-dialog-body > * {
+      flex-shrink: 0;
+    }
+
     .player-header {
       display: flex;
       flex-direction: column;
@@ -603,25 +669,61 @@
       opacity: 1;
     }
 
+    /* Per Material's sheet/dialog guidance: a fixed header, a body that
+       scrolls independently when content is long, and fixed footer actions
+       - so Cancel/Save (or Close) are never pushed off screen regardless of
+       how much content the body holds. */
     .sheet {
       background: var(--surface-elevated);
       border-radius: var(--radius-lg) var(--radius-lg) 0 0;
       box-shadow: var(--elevation-3);
       width: 100%;
       max-width: 450px;
-      padding: 1.5rem;
-      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
       display: flex;
       flex-direction: column;
-      gap: 1rem;
       max-height: 90vh;
-      overflow-y: auto;
       transform: translateY(100%);
       transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
     }
 
     .sheet-backdrop.show .sheet {
       transform: translateY(0);
+    }
+
+    .sheet-header {
+      flex-shrink: 0;
+      padding: 1.5rem 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .sheet-description {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .sheet-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Without this, a flex child's default flex-shrink:1 lets it get
+       squeezed to fit .sheet-body's available space instead of .sheet-body
+       scrolling past it - the exact bug this restructure is meant to fix,
+       just one level deeper. */
+    .sheet-body > * {
+      flex-shrink: 0;
+    }
+
+    .sheet-footer {
+      flex-shrink: 0;
+      padding: 1rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
     }
 
     /* Dialog - small, centered, for a single yes/no decision (confirmations),
@@ -784,39 +886,6 @@
           <!-- Items populated via JS -->
         </div>
       </div>
-
-      <!-- Routine Editor (Hidden by default) -->
-      <div id="routine-editor-view" class="card hidden">
-        <div class="card-title">
-          <span id="editor-title">Edit Routine</span>
-        </div>
-        
-        <div class="form-group">
-          <label for="routine-name-input">Routine Name</label>
-          <input type="text" id="routine-name-input" placeholder="e.g., Morning Calisthenics">
-        </div>
-
-        <div class="card-title mt-1">
-          <span>Activities</span>
-          <div class="actions">
-            <button id="btn-from-favorites" class="btn btn-icon btn-icon-favorite" title="Add from Favorites" aria-label="Add from Favorites">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-            </button>
-            <button id="btn-add-activity" class="btn btn-icon btn-icon-primary" title="Add Activity" aria-label="Add Activity">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            </button>
-          </div>
-        </div>
-
-        <div id="activity-list-container" class="activity-list">
-          <!-- Render activities here -->
-        </div>
-
-        <div class="row mt-1">
-          <button id="btn-cancel-routine" class="btn btn-secondary">Cancel</button>
-          <button id="btn-save-routine" class="btn btn-primary">Save Routine</button>
-        </div>
-      </div>
     </section>
 
     <!-- TAB 2: Voice & Sound Settings -->
@@ -932,6 +1001,41 @@
   <!-- Snackbar - transient, non-blocking feedback -->
   <div id="snackbar-container" class="snackbar-container" aria-live="polite"></div>
 
+  <!-- Routine Editor - full-screen dialog (Material's pattern for an
+       open-ended editing task), pinned app bar over a scrollable body -->
+  <div id="routine-editor-view" class="fullscreen-dialog" hidden>
+    <header class="fullscreen-dialog-bar">
+      <button id="btn-cancel-routine" class="btn btn-icon" title="Cancel" aria-label="Cancel">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+      <span id="editor-title" class="fullscreen-dialog-title">Edit Routine</span>
+      <button id="btn-save-routine" class="fullscreen-dialog-action">Save</button>
+    </header>
+
+    <div class="fullscreen-dialog-body">
+      <div class="form-group">
+        <label for="routine-name-input">Routine Name</label>
+        <input type="text" id="routine-name-input" placeholder="e.g., Morning Calisthenics">
+      </div>
+
+      <div class="card-title">
+        <span>Activities</span>
+        <div class="actions">
+          <button id="btn-from-favorites" class="btn btn-icon btn-icon-favorite" title="Add from Favorites" aria-label="Add from Favorites">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </button>
+          <button id="btn-add-activity" class="btn btn-icon btn-icon-primary" title="Add Activity" aria-label="Add Activity">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="activity-list-container" class="activity-list">
+        <!-- Render activities here -->
+      </div>
+    </div>
+  </div>
+
   <!-- Active Counter Player View (Overlay) -->
   <div id="player-view" hidden>
     <div class="player-header">
@@ -956,12 +1060,16 @@
   <!-- Bottom sheet for Selecting Routines to Export -->
   <div id="export-routines-modal" class="sheet-backdrop" hidden>
     <div class="sheet">
-      <h3>Select Routines to Export</h3>
-      <p style="font-size:0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Choose which routines you want to export:</p>
-      <div id="export-routines-list" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
-        <!-- Routines checkboxes will be populated here -->
+      <div class="sheet-header">
+        <h3>Select Routines to Export</h3>
+        <p class="sheet-description">Choose which routines you want to export:</p>
       </div>
-      <div class="row mt-1">
+      <div class="sheet-body">
+        <div id="export-routines-list" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+          <!-- Routines checkboxes will be populated here -->
+        </div>
+      </div>
+      <div class="sheet-footer row">
         <button id="btn-cancel-export" class="btn btn-secondary">Cancel</button>
         <button id="btn-confirm-export" class="btn btn-primary">Export Selected</button>
       </div>
@@ -971,58 +1079,62 @@
   <!-- Bottom sheet for Adding/Editing Activities -->
   <div id="activity-modal" class="sheet-backdrop" hidden>
     <div class="sheet">
-      <h3 id="modal-title">Configure Activity</h3>
-
-      <div class="form-group">
-        <label for="activity-type-select">Activity Type</label>
-        <select id="activity-type-select">
-          <option value="reps">Reps Counter</option>
-          <option value="exercise-timer">Exercise Timer</option>
-          <option value="instructions">Instructions</option>
-          <option value="rest">Rest</option>
-        </select>
+      <div class="sheet-header">
+        <h3 id="modal-title">Configure Activity</h3>
       </div>
 
-      <div class="form-group">
-        <label for="activity-title-input">Title / Exercise Name</label>
-        <input type="text" id="activity-title-input" placeholder="e.g., Push-ups">
-      </div>
-
-      <div id="reps-fields">
-        <div class="row">
-          <div class="form-group">
-            <label for="activity-reps-input">Total Reps</label>
-            <input type="number" id="activity-reps-input" min="1" value="10">
-          </div>
-          <div class="form-group">
-            <label for="activity-pace-input">Pace / Rep (s)</label>
-            <input type="number" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
-          </div>
-        </div>
-      </div>
-
-      <div id="duration-fields" class="hidden">
+      <div class="sheet-body">
         <div class="form-group">
-          <label for="activity-duration-input" id="activity-duration-label">Duration (seconds)</label>
-          <input type="number" id="activity-duration-input" min="1" value="60">
+          <label for="activity-type-select">Activity Type</label>
+          <select id="activity-type-select">
+            <option value="reps">Reps Counter</option>
+            <option value="exercise-timer">Exercise Timer</option>
+            <option value="instructions">Instructions</option>
+            <option value="rest">Rest</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="activity-title-input">Title / Exercise Name</label>
+          <input type="text" id="activity-title-input" placeholder="e.g., Push-ups">
+        </div>
+
+        <div id="reps-fields">
+          <div class="row">
+            <div class="form-group">
+              <label for="activity-reps-input">Total Reps</label>
+              <input type="number" id="activity-reps-input" min="1" value="10">
+            </div>
+            <div class="form-group">
+              <label for="activity-pace-input">Pace / Rep (s)</label>
+              <input type="number" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
+            </div>
+          </div>
+        </div>
+
+        <div id="duration-fields" class="hidden">
+          <div class="form-group">
+            <label for="activity-duration-input" id="activity-duration-label">Duration (seconds)</label>
+            <input type="number" id="activity-duration-input" min="1" value="60">
+          </div>
+        </div>
+
+        <div id="instructions-fields" class="hidden">
+          <div class="form-group">
+            <label for="activity-instructions-input">Instructions</label>
+            <textarea id="activity-instructions-input" placeholder="e.g., Assume the push-up position on your yoga mat. Shoulders back. Hands directly beneath your shoulders."></textarea>
+          </div>
+        </div>
+
+        <div class="favorite-toggle-row">
+          <span id="favorite-toggle-label" style="font-weight: 600; color: var(--text-main);">Save to Favorites</span>
+          <button type="button" id="btn-favorite-toggle" class="btn btn-icon" title="Save to Favorites" aria-pressed="false" aria-label="Save to Favorites">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1-.35-.32C7.36 14.15 4 11.24 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.74-3.36 5.65-7.9 9.73l-.4.32z"/></svg>
+          </button>
         </div>
       </div>
 
-      <div id="instructions-fields" class="hidden">
-        <div class="form-group mt-1">
-          <label for="activity-instructions-input">Instructions</label>
-          <textarea id="activity-instructions-input" placeholder="e.g., Assume the push-up position on your yoga mat. Shoulders back. Hands directly beneath your shoulders."></textarea>
-        </div>
-      </div>
-
-      <div class="favorite-toggle-row mt-1">
-        <span id="favorite-toggle-label" style="font-weight: 600; color: var(--text-main);">Save to Favorites</span>
-        <button type="button" id="btn-favorite-toggle" class="btn btn-icon" title="Save to Favorites" aria-pressed="false" aria-label="Save to Favorites">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1-.35-.32C7.36 14.15 4 11.24 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.74-3.36 5.65-7.9 9.73l-.4.32z"/></svg>
-        </button>
-      </div>
-
-      <div class="row mt-1">
+      <div class="sheet-footer row">
         <button id="btn-cancel-activity" class="btn btn-secondary">Cancel</button>
         <button id="btn-save-activity" class="btn btn-primary">Save Activity</button>
       </div>
@@ -1032,12 +1144,16 @@
   <!-- Bottom sheet for picking a Favorite Activity to reuse in the current routine -->
   <div id="favorites-picker-modal" class="sheet-backdrop" hidden>
     <div class="sheet">
-      <h3>Favorite Activities</h3>
-      <p style="font-size:0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Tap a favorite to add a copy to this routine.</p>
-      <div id="favorites-picker-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
-        <!-- Favorite items populated via JS -->
+      <div class="sheet-header">
+        <h3>Favorite Activities</h3>
+        <p class="sheet-description">Tap a favorite to add a copy to this routine.</p>
       </div>
-      <div class="row mt-1">
+      <div class="sheet-body">
+        <div id="favorites-picker-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- Favorite items populated via JS -->
+        </div>
+      </div>
+      <div class="sheet-footer row">
         <button id="btn-cancel-favorites-picker" class="btn btn-secondary">Close</button>
       </div>
     </div>
@@ -1984,7 +2100,6 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       },
 
       // Routine Management View
-      routineListView: document.getElementById('routine-list-view'),
       routineEditorView: document.getElementById('routine-editor-view'),
       routinesContainer: document.getElementById('routines-container'),
       activityListContainer: document.getElementById('activity-list-container'),
@@ -2263,8 +2378,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.routineNameInput.value = '';
         this.renderActivitiesList(state.editingRoutineDraft);
 
-        this.routineListView.classList.add('hidden');
-        this.routineEditorView.classList.remove('hidden');
+        this.routineEditorView.hidden = false;
         this.updateFabVisibility();
         pushBackGuard(() => this.handleEditorBack());
       },
@@ -2280,8 +2394,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.routineNameInput.value = state.editingRoutineDraft.name;
         this.renderActivitiesList(state.editingRoutineDraft);
 
-        this.routineListView.classList.add('hidden');
-        this.routineEditorView.classList.remove('hidden');
+        this.routineEditorView.hidden = false;
         this.updateFabVisibility();
         pushBackGuard(() => this.handleEditorBack());
       },
@@ -2342,8 +2455,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         state.currentEditingRoutineId = null;
         state.editingRoutineDraft = null;
         state.editingRoutineOriginal = null;
-        this.routineEditorView.classList.add('hidden');
-        this.routineListView.classList.remove('hidden');
+        this.routineEditorView.hidden = true;
         this.renderRoutinesList();
         this.updateFabVisibility();
         closeTopBackGuard();
@@ -2355,8 +2467,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       updateFabVisibility() {
         const fab = document.getElementById('fab-new-routine');
         const onRoutinesTab = this.secRoutines.classList.contains('active');
-        const editorOpen = !this.routineEditorView.classList.contains('hidden');
-        fab.hidden = !onRoutinesTab || editorOpen;
+        fab.hidden = !onRoutinesTab || !this.routineEditorView.hidden;
       },
 
       // Switches the visible tab without touching history - used both by the
