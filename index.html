@@ -382,11 +382,11 @@
       gap: 0.5rem;
     }
 
-    /* Shared card layout: Routine cards and Block cards both use a drag
+    /* Shared card layout: Routine cards and Activity cards both use a drag
        handle beside a stacked [title] + [5-column action grid] content
        block, so they read as one consistent pattern. */
     .item-card {
-      /* Both Routine cards and Block cards are nested inside a --card-bg
+      /* Both Routine cards and Activity cards are nested inside a --card-bg
          parent card (the "My Routines" card and the "Edit Routine" card,
          respectively), so both use the same slightly-different nested
          surface color rather than blending into their parent. */
@@ -472,14 +472,14 @@
       min-height: 44px;
     }
 
-    /* Block Items inside Editor */
-    .block-list {
+    /* Activity Items inside Editor */
+    .activity-list {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
     }
 
-    .block-list .item-card {
+    .activity-list .item-card {
       border-radius: 8px;
       padding: 0.75rem;
     }
@@ -565,7 +565,7 @@
       font-size: 1.1rem;
     }
 
-    /* Bottom Sheet - task-oriented panels (the block editor, the export
+    /* Bottom Sheet - task-oriented panels (the activity editor, the export
        picker) slide up from the bottom rather than appearing as a centered
        dialog, which is easier to reach one-handed on a phone. */
     .sheet-backdrop {
@@ -782,15 +782,14 @@
         </div>
 
         <div class="card-title mt-1">
-          <span>Blocks</span>
+          <span>Activities</span>
           <div class="actions">
-            <button id="btn-add-rep-block" class="btn btn-secondary btn-sm">+ Rep Set</button>
-            <button id="btn-add-rest-block" class="btn btn-secondary btn-sm">+ Rest</button>
+            <button id="btn-add-activity" class="btn btn-secondary btn-sm">+ Add Activity</button>
           </div>
         </div>
 
-        <div id="block-list-container" class="block-list">
-          <!-- Render blocks here -->
+        <div id="activity-list-container" class="activity-list">
+          <!-- Render activities here -->
         </div>
 
         <div class="row mt-1">
@@ -871,13 +870,13 @@
     <section id="sec-backup" class="tab-content">
       <div class="card">
         <div class="card-title">Export Routine(s)</div>
-        <p style="font-size:0.85rem; color: var(--text-muted);">Export selected routines and blocks to a local JSON file. Perfect for sharing.</p>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Export selected routines and activities to a local JSON file. Perfect for sharing.</p>
         <button id="btn-export-routines" class="btn btn-primary">Select Routines to Export</button>
       </div>
 
       <div class="card">
         <div class="card-title">Import Routine(s)</div>
-        <p style="font-size:0.85rem; color: var(--text-muted);">Import shared routines without losing your other saved routines. (Duplicate routines and blocks will be overwritten.)</p>
+        <p style="font-size:0.85rem; color: var(--text-muted);">Import shared routines without losing your other saved routines. (Duplicate routines and activities will be overwritten.)</p>
         <input type="file" id="file-import-routines" accept="application/json" style="display: none;">
         <button id="btn-import-routines-trigger" class="btn btn-secondary">Select JSON File to Import</button>
       </div>
@@ -949,56 +948,56 @@
     </div>
   </div>
 
-  <!-- Bottom sheet for Adding/Editing Blocks -->
-  <div id="block-modal" class="sheet-backdrop" hidden>
+  <!-- Bottom sheet for Adding/Editing Activities -->
+  <div id="activity-modal" class="sheet-backdrop" hidden>
     <div class="sheet">
-      <h3 id="modal-title">Configure Block</h3>
-      
+      <h3 id="modal-title">Configure Activity</h3>
+
       <div class="form-group">
-        <label for="block-type-select">Block Type</label>
-        <select id="block-type-select">
-          <option value="rep">Reps Counter</option>
-          <option value="rest">Rest Timer</option>
+        <label for="activity-type-select">Activity Type</label>
+        <select id="activity-type-select">
+          <option value="reps">Reps Counter</option>
+          <option value="exercise-timer">Exercise Timer</option>
+          <option value="instructions">Instructions</option>
+          <option value="rest">Rest</option>
         </select>
       </div>
 
       <div class="form-group">
-        <label for="block-title-input">Title / Exercise Name</label>
-        <input type="text" id="block-title-input" placeholder="e.g., Push-ups">
+        <label for="activity-title-input">Title / Exercise Name</label>
+        <input type="text" id="activity-title-input" placeholder="e.g., Push-ups">
       </div>
 
-      <div id="rep-fields">
+      <div id="reps-fields">
         <div class="row">
           <div class="form-group">
-            <label for="block-reps-input">Total Reps</label>
-            <input type="number" id="block-reps-input" min="1" value="10">
+            <label for="activity-reps-input">Total Reps</label>
+            <input type="number" id="activity-reps-input" min="1" value="10">
           </div>
           <div class="form-group">
-            <label for="block-pace-input">Pace / Rep (s)</label>
-            <input type="number" id="block-pace-input" min="0.5" step="0.1" value="3.0">
+            <label for="activity-pace-input">Pace / Rep (s)</label>
+            <input type="number" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
           </div>
         </div>
       </div>
 
-      <div id="rest-fields" class="hidden">
+      <div id="duration-fields" class="hidden">
         <div class="form-group">
-          <label for="block-duration-input">Rest Duration (seconds)</label>
-          <input type="number" id="block-duration-input" min="1" value="60">
-        </div>
-        <div class="form-group mt-1">
-          <label for="block-instructions-input">Instructions (Optional)</label>
-          <textarea id="block-instructions-input" placeholder="e.g., Assume the pushups position on your yoga mat. Shoulders back. Hands directly beneath your shoulders."></textarea>
+          <label for="activity-duration-input" id="activity-duration-label">Duration (seconds)</label>
+          <input type="number" id="activity-duration-input" min="1" value="60">
         </div>
       </div>
 
-      <div id="rep-tip" style="background: var(--input-bg); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0;"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
-        <span>Tip: Set Total Reps to 1 to create a timed exercise.</span>
+      <div id="instructions-fields" class="hidden">
+        <div class="form-group mt-1">
+          <label for="activity-instructions-input">Instructions</label>
+          <textarea id="activity-instructions-input" placeholder="e.g., Assume the push-up position on your yoga mat. Shoulders back. Hands directly beneath your shoulders."></textarea>
+        </div>
       </div>
 
       <div class="row mt-1">
-        <button id="btn-cancel-block" class="btn btn-secondary">Cancel</button>
-        <button id="btn-save-block" class="btn btn-primary">Save Block</button>
+        <button id="btn-cancel-activity" class="btn btn-secondary">Cancel</button>
+        <button id="btn-save-activity" class="btn btn-primary">Save Activity</button>
       </div>
     </div>
   </div>
@@ -1014,11 +1013,11 @@
       {
         id: 'default-1',
         name: 'Full Body Circuit',
-        blocks: [
-          { id: 'b1', type: 'rep', title: 'Bodyweight Squats', reps: 10, pace: 3.0 },
-          { id: 'b2', type: 'rest', title: 'Rest', duration: 20, instructions: '' },
-          { id: 'b3', type: 'rep', title: 'Push-ups', reps: 12, pace: 2.5 },
-          { id: 'b4', type: 'rest', title: 'Hydration Recovery', duration: 45, instructions: '' }
+        activities: [
+          { id: 'a1', type: 'reps', title: 'Bodyweight Squats', reps: 10, pace: 3.0 },
+          { id: 'a2', type: 'rest', title: 'Rest', duration: 20 },
+          { id: 'a3', type: 'reps', title: 'Push-ups', reps: 12, pace: 2.5 },
+          { id: 'a4', type: 'rest', title: 'Hydration Recovery', duration: 45 }
         ]
       }
     ];
@@ -1066,71 +1065,121 @@
     ];
 
     let state = {
-      routines: JSON.parse(localStorage.getItem(STORAGE_KEY_ROUTINES)) || defaultRoutines,
+      routines: migrateRoutines(JSON.parse(localStorage.getItem(STORAGE_KEY_ROUTINES)) || defaultRoutines),
       settings: Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}')),
       currentEditingRoutineId: null,
       editingRoutineDraft: null,
-      editingBlockId: null
+      editingActivityId: null
     };
 
-    const LLM_ROUTINE_PROMPT = `You are a fitness expert creating a structured workout routine from a YouTube video.
+    const LLM_ROUTINE_PROMPT = `You are creating a structured workout routine from a YouTube video for Workout TTS, an app that acts as a spoken personal trainer: it describes each exercise before the user performs it, then counts them through it aloud.
 
 TASK:
 Watch and analyze this YouTube video: [PASTE YOUTUBE VIDEO LINK HERE]
 
-Then create a detailed workout routine in JSON format that can be imported into the Workout TTS (Text-to-Speech) fitness app.
+Then create a detailed workout routine in JSON format that can be imported into the Workout TTS app.
 
 ROUTINE STRUCTURE:
-The routine should consist of alternating "rest blocks" and "rep blocks", with a REST BLOCK placed immediately BEFORE every single exercise (including the very first one) so the user always has time to get into position before it starts.
+A routine is a sequence of "activities". There are four activity types:
 
-- REST BLOCK: Contains a rest duration (in seconds) and brief instructions describing the UPCOMING exercise
-- REP BLOCK: Contains an exercise name, number of reps, and pace (seconds per rep)
+1. **Instructions** - spoken setup describing the upcoming exercise, with a duration (seconds) to allow time to get into position. Place one of these immediately BEFORE every single exercise, with no exceptions (including the very first one in the routine).
+   - duration: seconds to get set up (typically 15-30s)
+   - instructions: 1-2 sentences describing the exercise and how to perform it, as if reminding someone unfamiliar with it. Examples:
+     * "Push-ups: assume a push-up position with shoulders back, hands directly beneath shoulders"
+     * "Bodyweight squats: stand with feet hip-width apart, engage your core for balance"
+     * "Plank hold: get into a forearm plank, elbows under shoulders, body in a straight line"
+
+2. **Reps Counter** - a rep-based exercise the app counts aloud rep by rep.
+   - reps: number of repetitions
+   - pace: estimated seconds per rep, including form (e.g. 2.0-3.5)
+
+3. **Exercise Timer** - a duration-based exercise (e.g. a plank hold, wall sit, or timed cardio burst) the app counts down continuously rather than rep by rep.
+   - duration: total seconds for the exercise
+
+4. **Rest** - a silent recovery break between rounds or circuits, with no specific next exercise to describe (use Instructions instead whenever there IS a specific next exercise).
+   - duration: seconds to rest (typically 30-90s depending on intensity)
 
 SPECIFIC REQUIREMENTS:
 
-1. **Rest Blocks** (one immediately before EVERY exercise, with no exceptions) should include:
-   - Rest duration in seconds (30-90 seconds depending on intensity)
-   - Instructions field: A brief (1-2 sentences max) description of the next exercise and how to set up for it
-   - Examples of good instructions:
-     * "Push-ups: assume a push-up position with shoulders back, hands directly beneath shoulders"
-     * "Bodyweight squats: stand with feet hip-width apart, engage your core for balance"
-     * "Mountain climbers: start in a plank position with hands shoulder-width apart on the ground"
-
-2. **Rep Blocks** should include:
-   - Exercise name (clear, specific)
-   - Number of repetitions (or duration in seconds if it's a timed exercise)
-   - Pace per rep in seconds (estimated time to complete one rep, including form)
-
+1. Every Reps Counter or Exercise Timer activity must be immediately preceded by an Instructions activity describing it - no exceptions, including the first exercise in the routine.
+2. Use Rest only for a longer break between rounds/circuits where nothing exercise-specific needs to be said.
 3. **Routine Metadata**:
    - Name: [Descriptive routine name from the video]
    - Description: [Brief description of the workout type]
 
-4. **Format**: Return valid JSON with this structure (note that a "rest" block always comes first, immediately before its corresponding "rep" block):
+4. **Format**: Return valid JSON with this structure:
 \`\`\`json
 {
   "id": "routine-[generated-id]",
   "name": "[Routine Name]",
   "description": "[Brief description]",
-  "blocks": [
+  "activities": [
     {
-      "id": "block-[number]",
-      "type": "rest",
-      "title": "Rest",
+      "id": "activity-[number]",
+      "type": "instructions",
+      "title": "[Exercise Name]",
       "duration": [seconds],
-      "instructions": "[Brief description of the next exercise and setup instructions]"
+      "instructions": "[Description of the exercise and how to perform it]"
     },
     {
-      "id": "block-[number]",
-      "type": "rep",
+      "id": "activity-[number]",
+      "type": "reps",
       "title": "[Exercise Name]",
       "reps": [number],
       "pace": [seconds per rep as decimal]
+    },
+    {
+      "id": "activity-[number]",
+      "type": "instructions",
+      "title": "[Exercise Name]",
+      "duration": [seconds],
+      "instructions": "[Description of the exercise and how to perform it]"
+    },
+    {
+      "id": "activity-[number]",
+      "type": "exercise-timer",
+      "title": "[Exercise Name]",
+      "duration": [total seconds]
+    },
+    {
+      "id": "activity-[number]",
+      "type": "rest",
+      "title": "Rest",
+      "duration": [seconds]
     }
   ]
 }
 \`\`\`
 
 Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be pasted directly into the Workout TTS app.`;
+
+    // Upgrades an old-schema routine (routine.blocks, type: 'rep'|'rest') to
+    // the current schema (routine.activities, type: 'reps'|'exercise-timer'|
+    // 'instructions'|'rest') in place. A no-op for anything already current,
+    // so it's safe to run on every load/import path rather than tracking
+    // which data has and hasn't been upgraded yet.
+    function migrateRoutine(routine) {
+      if (!routine || !Array.isArray(routine.blocks)) return routine;
+
+      routine.activities = routine.blocks.map(block => {
+        if (block.type === 'rep') {
+          return block.reps === 1
+            ? { id: block.id, type: 'exercise-timer', title: block.title, duration: block.pace }
+            : { id: block.id, type: 'reps', title: block.title, reps: block.reps, pace: block.pace };
+        }
+        // Old 'rest' type: instructions populated -> 'instructions', otherwise plain 'rest'.
+        return (block.instructions && block.instructions.trim())
+          ? { id: block.id, type: 'instructions', title: block.title, duration: block.duration, instructions: block.instructions.trim() }
+          : { id: block.id, type: 'rest', title: block.title, duration: block.duration };
+      });
+      delete routine.blocks;
+      return routine;
+    }
+
+    function migrateRoutines(routines) {
+      if (Array.isArray(routines)) routines.forEach(migrateRoutine);
+      return routines;
+    }
 
     function saveRoutines() {
       localStorage.setItem(STORAGE_KEY_ROUTINES, JSON.stringify(state.routines));
@@ -1168,7 +1217,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     /* =========================================================================
        2. NAVIGATION GUARD (Back Button / Gesture Interception)
        ========================================================================= */
-    // Overlays (routine editor, block modal, export modal, player) push a
+    // Overlays (routine editor, activity modal, export modal, player) push a
     // history entry when opened. A device/browser back triggers popstate
     // instead of silently closing the overlay; the top guard's onBack()
     // decides whether to show a contextual warning before actually closing.
@@ -1343,13 +1392,13 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     class ExecutionEngine {
       constructor() {
         this.routine = null;
-        this.blockIndex = 0;
+        this.activityIndex = 0;
         this.subState = 'WORK'; // 'WORK', 'REST'
         this.currentRep = 0;
         this.timer = null;
         this.isPaused = false;
         this.wakeLock = null;
-        
+
         // Time tracking
         this.lastTime = 0;
         this.accTime = 0;
@@ -1373,54 +1422,48 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       start(routine) {
         this.routine = routine;
-        this.blockIndex = 0;
+        this.activityIndex = 0;
         this.isPaused = false;
         this.requestWakeLock();
         audioEngine.getAudioContext(); // Ensure Context activated by gesture
-        
+
         ui.showPlayer(true);
-        this.loadBlock();
+        this.loadActivity();
       }
 
-      loadBlock() {
-        if (this.blockIndex >= this.routine.blocks.length) {
+      loadActivity() {
+        if (this.activityIndex >= this.routine.activities.length) {
           this.finishRoutine();
           return;
         }
 
-        const block = this.routine.blocks[this.blockIndex];
-        
-        if (block.type === 'rep') {
-          this.setupWorkPhase(block);
-        } else if (block.type === 'rest') {
-          this.setupStandAloneRestPhase(block);
+        const activity = this.routine.activities[this.activityIndex];
+
+        if (activity.type === 'reps') {
+          this.setupRepsPhase(activity);
+        } else if (activity.type === 'exercise-timer') {
+          this.setupExerciseTimerPhase(activity);
+        } else {
+          // 'instructions' and 'rest' are both a duration-based countdown,
+          // differing only in what's announced at the start.
+          this.setupRestPhase(activity);
         }
       }
 
-      setupWorkPhase(block) {
-        // Single-rep blocks (reps === 1) represent timed exercises (e.g., "30 seconds of running")
-        // Multi-rep blocks (reps > 1) represent counted exercises where each rep takes block.pace seconds
-        // accTime is re-added per rep in tick() for multi-rep blocks to prevent timing drift
+      setupRepsPhase(activity) {
+        // accTime is re-added per rep in tick() to prevent timing drift.
         this.stopLoop();
         this.subState = 'WORK';
         this.currentRep = 1;
-        this.accTime = block.pace;
-        
-        const initialDisplay = block.reps === 1 ? formatDisplayTime(this.accTime) : this.currentRep;
-        const initialSub = block.reps === 1 ? 'Work Period' : `Rep 1 of ${block.reps}`;
+        this.accTime = activity.pace;
 
-        ui.updatePlayerStatus('WORK', 'status-rep', block.title, initialDisplay, initialSub, this.getNextPreview());
+        ui.updatePlayerStatus('WORK', 'status-rep', activity.title, this.currentRep, `Rep 1 of ${activity.reps}`, this.getNextPreview());
         audioEngine.playChime();
         triggerHaptic([100, 50, 100]);
 
-        const spokenDuration = block.reps === 1 ? `${formatDurationSpeech(block.pace)}.` : '';
-        const phrase = spokenDuration ? `${block.title}. ${spokenDuration} Begin.` : `${block.title}. Begin.`;
-
-        audioEngine.speak(phrase, true, () => {
+        audioEngine.speak(`${activity.title}. Begin.`, true, () => {
           if (this.isPaused || this.subState !== 'WORK') return;
-          if (block.reps > 1) {
-            audioEngine.speak(`1`, false);
-          }
+          audioEngine.speak('1', false);
           audioEngine.playTick();
           triggerHaptic(60);
           this.lastTime = performance.now();
@@ -1428,31 +1471,42 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         });
       }
 
-      setupStandAloneRestPhase(block) {
-        // Rest blocks serve dual purpose:
-        // - Without instructions: actual rest/recovery period (announces duration)
-        // - With instructions: setup/preparation block for next exercise (announces only instructions)
+      setupExerciseTimerPhase(activity) {
+        this.stopLoop();
+        this.subState = 'WORK';
+        this.accTime = activity.duration;
+
+        ui.updatePlayerStatus('WORK', 'status-rep', activity.title, formatDisplayTime(this.accTime), 'Work Period', this.getNextPreview());
+        audioEngine.playChime();
+        triggerHaptic([100, 50, 100]);
+
+        audioEngine.speak(`${activity.title}. ${formatDurationSpeech(activity.duration)}. Begin.`, true, () => {
+          if (this.isPaused || this.subState !== 'WORK') return;
+          audioEngine.playTick();
+          triggerHaptic(60);
+          this.lastTime = performance.now();
+          this.startLoop();
+        });
+      }
+
+      setupRestPhase(activity) {
         this.stopLoop();
         this.subState = 'REST';
-        this.accTime = block.duration;
-        ui.updatePlayerStatus('REST', 'status-rest', block.title, formatDisplayTime(this.accTime), 'Rest Block', this.getNextPreview());
+        this.accTime = activity.duration;
+        ui.updatePlayerStatus('REST', 'status-rest', activity.title, formatDisplayTime(this.accTime), activity.type === 'instructions' ? 'Get Ready' : 'Rest', this.getNextPreview());
 
-        const formattedDuration = formatDurationSpeech(block.duration);
-        let phrase = '';
-        if (block.instructions && block.instructions.trim()) {
-          phrase = `${block.instructions.trim()}`;
-        } else {
-          phrase = `${block.title}. ${formattedDuration} rest.`;
-        }
+        const phrase = activity.type === 'instructions' && activity.instructions.trim()
+          ? activity.instructions.trim()
+          : `${activity.title}. ${formatDurationSpeech(activity.duration)} rest.`;
 
         audioEngine.speak(phrase, true);
         this.startLoop();
       }
 
       getNextPreview() {
-        const nextBlock = this.routine.blocks[this.blockIndex + 1];
-        if (nextBlock) {
-          return `Next: ${nextBlock.title} (${nextBlock.type === 'rep' ? nextBlock.reps + ' reps' : nextBlock.duration + 's'})`;
+        const nextActivity = this.routine.activities[this.activityIndex + 1];
+        if (nextActivity) {
+          return `Next: ${nextActivity.title} (${nextActivity.type === 'reps' ? nextActivity.reps + ' reps' : nextActivity.duration + 's'})`;
         }
         return 'Next: Workout Complete';
       }
@@ -1470,15 +1524,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
       }
 
-      checkLongExerciseAnnouncement(block, currentSec) {
+      checkLongExerciseAnnouncement(activity, currentSec) {
         const threshold = state.settings.timeRemainingThreshold;
         if (threshold === null) return; // Never announce
 
         const interval = state.settings.remainingTimeInterval;
         if (interval === null) return; // Announcements disabled
 
-        const exerciseDuration = block.pace;
-        const timeDiffThreshold = (exerciseDuration * (1 - threshold / 100));
+        const timeDiffThreshold = (activity.duration * (1 - threshold / 100));
         const timeRemaining = this.accTime;
 
         // Only announce if we're past the threshold
@@ -1505,7 +1558,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.accTime -= delta;
         const currentSec = Math.ceil(this.accTime);
 
-        const block = this.routine.blocks[this.blockIndex];
+        const activity = this.routine.activities[this.activityIndex];
 
         if (this.subState === 'REST') {
           if (currentSec !== prevSec && currentSec > 0) {
@@ -1519,11 +1572,11 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
 
           if (this.accTime <= 0) {
-            this.blockIndex++;
-            this.loadBlock();
+            this.activityIndex++;
+            this.loadActivity();
           }
         } else if (this.subState === 'WORK') {
-          if (block.reps === 1) {
+          if (activity.type === 'exercise-timer') {
             if (currentSec !== prevSec && currentSec > 0) {
               ui.updateCounterDisplay(formatDisplayTime(this.accTime));
               const countdownThreshold = state.settings.countdownThreshold;
@@ -1533,27 +1586,27 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
                 triggerHaptic(40);
               }
               // Check for long-exercise time remaining announcements
-              this.checkLongExerciseAnnouncement(block, currentSec);
+              this.checkLongExerciseAnnouncement(activity, currentSec);
             }
 
             if (this.accTime <= 0) {
-              this.blockIndex++;
-              this.loadBlock();
+              this.activityIndex++;
+              this.loadActivity();
             }
           } else {
             if (this.accTime <= 0) {
-              if (this.currentRep < block.reps) {
+              if (this.currentRep < activity.reps) {
                 this.currentRep++;
-                this.accTime += block.pace; // accumulate offset to prevent drift
+                this.accTime += activity.pace; // accumulate offset to prevent drift
                 ui.updateCounterDisplay(this.currentRep);
-                ui.updateCounterSub(`Rep ${this.currentRep} of ${block.reps}`);
+                ui.updateCounterSub(`Rep ${this.currentRep} of ${activity.reps}`);
                 audioEngine.speak(`${this.currentRep}`, true);
                 audioEngine.playTick();
                 triggerHaptic(60);
               } else {
-                // Work set completed
-                this.blockIndex++;
-                this.loadBlock();
+                // Rep set completed
+                this.activityIndex++;
+                this.loadActivity();
               }
             }
           }
@@ -1573,8 +1626,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       skip() {
         audioEngine.stopSpeech();
-        this.blockIndex++;
-        this.loadBlock();
+        this.activityIndex++;
+        this.loadActivity();
       }
 
       stop() {
@@ -1611,6 +1664,13 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     const COPY_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
     const DELETE_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
     const PLAY_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
+
+    const ACTIVITY_TYPE_BADGE_LABELS = {
+      'reps': 'REPS',
+      'exercise-timer': 'EXERCISE TIMER',
+      'instructions': 'INSTRUCTIONS',
+      'rest': 'REST'
+    };
 
     /* =========================================================================
        4.5. SNACKBAR + DIALOG (replacing native alert()/confirm())
@@ -1685,7 +1745,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       });
     }
 
-    // Bottom sheets (block editor, export picker) are shown/hidden with a
+    // Bottom sheets (activity editor, export picker) are shown/hidden with a
     // slide animation rather than an abrupt display:none toggle.
     function openSheet(sheetBackdrop) {
       sheetBackdrop.hidden = false;
@@ -1770,7 +1830,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
        4.7. RIPPLE + SLIDER VALUE BUBBLE
        ========================================================================= */
     // A single delegated listener covers every button, including ones
-    // rendered dynamically later (routine/block cards).
+    // rendered dynamically later (routine/activity cards).
     document.addEventListener('pointerdown', (e) => {
       const btn = e.target.closest('.btn');
       if (!btn) return;
@@ -1842,7 +1902,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       routineListView: document.getElementById('routine-list-view'),
       routineEditorView: document.getElementById('routine-editor-view'),
       routinesContainer: document.getElementById('routines-container'),
-      blockListContainer: document.getElementById('block-list-container'),
+      activityListContainer: document.getElementById('activity-list-container'),
       routineNameInput: document.getElementById('routine-name-input'),
 
       // Player Overlay Elements
@@ -1855,15 +1915,16 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       btnPause: document.getElementById('btn-pause'),
 
       // Modal Elements
-      blockModal: document.getElementById('block-modal'),
-      blockTypeSelect: document.getElementById('block-type-select'),
-      blockTitleInput: document.getElementById('block-title-input'),
-      blockRepsInput: document.getElementById('block-reps-input'),
-      blockPaceInput: document.getElementById('block-pace-input'),
-      blockDurationInput: document.getElementById('block-duration-input'),
-      blockInstructionsInput: document.getElementById('block-instructions-input'),
-      repFields: document.getElementById('rep-fields'),
-      restFields: document.getElementById('rest-fields'),
+      activityModal: document.getElementById('activity-modal'),
+      activityTypeSelect: document.getElementById('activity-type-select'),
+      activityTitleInput: document.getElementById('activity-title-input'),
+      activityRepsInput: document.getElementById('activity-reps-input'),
+      activityPaceInput: document.getElementById('activity-pace-input'),
+      activityDurationInput: document.getElementById('activity-duration-input'),
+      activityInstructionsInput: document.getElementById('activity-instructions-input'),
+      repsFields: document.getElementById('reps-fields'),
+      durationFields: document.getElementById('duration-fields'),
+      instructionsFields: document.getElementById('instructions-fields'),
 
       init() {
         this.bindEvents();
@@ -1933,16 +1994,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         document.getElementById('btn-cancel-routine').addEventListener('click', () => this.handleEditorBack());
 
         setupReorderable(this.routinesContainer, '.item-card', (from, to) => this.reorderRoutines(from, to));
-        setupReorderable(this.blockListContainer, '.item-card', (from, to) => this.reorderBlocks(from, to));
+        setupReorderable(this.activityListContainer, '.item-card', (from, to) => this.reorderActivities(from, to));
 
-        // Block Modal Triggers
-        document.getElementById('btn-add-rep-block').addEventListener('click', () => this.openBlockModal('rep'));
-        document.getElementById('btn-add-rest-block').addEventListener('click', () => this.openBlockModal('rest'));
-        document.getElementById('btn-cancel-block').addEventListener('click', () => this.handleBlockModalBack());
-        document.getElementById('btn-save-block').addEventListener('click', () => this.saveBlock());
+        // Activity Modal Triggers
+        document.getElementById('btn-add-activity').addEventListener('click', () => this.openActivityModal());
+        document.getElementById('btn-cancel-activity').addEventListener('click', () => this.handleActivityModalBack());
+        document.getElementById('btn-save-activity').addEventListener('click', () => this.saveActivity());
 
-        this.blockTypeSelect.addEventListener('change', (e) => {
-          this.toggleBlockModalFields(e.target.value);
+        this.activityTypeSelect.addEventListener('change', (e) => {
+          this.toggleActivityModalFields(e.target.value);
         });
 
         // Player UI Actions
@@ -2061,7 +2121,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             <div class="item-content">
               <div class="item-title">${escapeHTML(routine.name)}</div>
               <div class="item-actions-grid">
-                <span class="grid-tile">${routine.blocks.length} Blocks</span>
+                <span class="grid-tile">${routine.activities.length} Activities</span>
                 <button class="btn btn-icon btn-icon-primary btn-sm" onclick="ui.startRoutine('${routine.id}')" title="Start Routine">${PLAY_ICON_SVG}</button>
                 <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">${EDIT_ICON_SVG}</button>
                 <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">${COPY_ICON_SVG}</button>
@@ -2085,14 +2145,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         const newRoutine = {
           id: 'routine-' + Date.now(),
           name: '',
-          blocks: []
+          activities: []
         };
         state.currentEditingRoutineId = newRoutine.id;
         state.editingRoutineDraft = JSON.parse(JSON.stringify(newRoutine));
         state.editingRoutineOriginal = JSON.stringify(state.editingRoutineDraft);
 
         this.routineNameInput.value = '';
-        this.renderBlocksList(state.editingRoutineDraft);
+        this.renderActivitiesList(state.editingRoutineDraft);
 
         this.routineListView.classList.add('hidden');
         this.routineEditorView.classList.remove('hidden');
@@ -2109,7 +2169,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         state.editingRoutineOriginal = JSON.stringify(state.editingRoutineDraft);
 
         this.routineNameInput.value = state.editingRoutineDraft.name;
-        this.renderBlocksList(state.editingRoutineDraft);
+        this.renderActivitiesList(state.editingRoutineDraft);
 
         this.routineListView.classList.add('hidden');
         this.routineEditorView.classList.remove('hidden');
@@ -2124,7 +2184,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         if (!state.editingRoutineDraft || !state.editingRoutineOriginal) return false;
         const original = JSON.parse(state.editingRoutineOriginal);
         if (this.routineNameInput.value.trim() !== original.name) return true;
-        return JSON.stringify(state.editingRoutineDraft.blocks) !== JSON.stringify(original.blocks);
+        return JSON.stringify(state.editingRoutineDraft.activities) !== JSON.stringify(original.activities);
       },
 
       saveRoutine() {
@@ -2160,8 +2220,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
 
         const draft = state.editingRoutineDraft;
-        const message = (draft && draft.blocks.length === 0)
-          ? 'This routine has no blocks. Discard it?'
+        const message = (draft && draft.activities.length === 0)
+          ? 'This routine has no activities. Discard it?'
           : 'Discard changes to this routine?';
         const discard = await showConfirmDialog({ title: 'Discard changes?', message, confirmLabel: 'Discard', danger: true });
         if (discard) {
@@ -2228,173 +2288,183 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
       },
 
-      renderBlocksList(routine) {
-        this.blockListContainer.innerHTML = '';
-        if (!routine || routine.blocks.length === 0) {
-          this.blockListContainer.innerHTML = `<p style="font-size:0.85rem; color: var(--text-muted); text-align:center;">No blocks added yet.</p>`;
+      renderActivitiesList(routine) {
+        this.activityListContainer.innerHTML = '';
+        if (!routine || routine.activities.length === 0) {
+          this.activityListContainer.innerHTML = `<p style="font-size:0.85rem; color: var(--text-muted); text-align:center;">No activities added yet.</p>`;
           return;
         }
 
-        routine.blocks.forEach((block) => {
+        routine.activities.forEach((activity) => {
           const item = document.createElement('div');
           item.className = 'item-card';
 
           let details = '';
-          if (block.type === 'rep') {
-            details = `${block.reps} reps @ ${block.pace}s/rep`;
+          if (activity.type === 'reps') {
+            details = `${activity.reps} reps @ ${activity.pace}s/rep`;
+          } else if (activity.type === 'instructions') {
+            details = `Duration: ${activity.duration}s | Has Instructions`;
           } else {
-            details = `Duration: ${block.duration}s` + (block.instructions ? ' | Has Instructions' : '');
+            details = `Duration: ${activity.duration}s`;
           }
+
+          const badgeLabel = ACTIVITY_TYPE_BADGE_LABELS[activity.type] || activity.type.toUpperCase();
 
           item.innerHTML = `
             <span class="drag-handle" title="Drag to reorder">${DRAG_HANDLE_SVG}</span>
             <div class="item-content">
-              <div class="item-title">${escapeHTML(block.title)} <span class="type-badge">(${block.type.toUpperCase()})</span></div>
+              <div class="item-title">${escapeHTML(activity.title)} <span class="type-badge">(${badgeLabel})</span></div>
               <div class="item-actions-grid">
                 <span class="grid-tile align-left">${details}</span>
-                <button class="btn btn-icon btn-sm" onclick="ui.openBlockModal(null, '${block.id}')" title="Edit Block">${EDIT_ICON_SVG}</button>
-                <button class="btn btn-icon btn-sm" onclick="ui.duplicateBlock('${block.id}')" title="Duplicate Block">${COPY_ICON_SVG}</button>
-                <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteBlock('${block.id}')" title="Delete Block">${DELETE_ICON_SVG}</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.openActivityModal(null, '${activity.id}')" title="Edit Activity">${EDIT_ICON_SVG}</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.duplicateActivity('${activity.id}')" title="Duplicate Activity">${COPY_ICON_SVG}</button>
+                <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteActivity('${activity.id}')" title="Delete Activity">${DELETE_ICON_SVG}</button>
               </div>
             </div>
           `;
 
-          this.blockListContainer.appendChild(item);
+          this.activityListContainer.appendChild(item);
         });
       },
 
-      reorderBlocks(fromIndex, toIndex) {
+      reorderActivities(fromIndex, toIndex) {
         const routine = state.editingRoutineDraft;
         if (!routine) return;
 
-        const [movedBlock] = routine.blocks.splice(fromIndex, 1);
-        routine.blocks.splice(toIndex, 0, movedBlock);
+        const [movedActivity] = routine.activities.splice(fromIndex, 1);
+        routine.activities.splice(toIndex, 0, movedActivity);
 
-        this.renderBlocksList(routine);
+        this.renderActivitiesList(routine);
       },
 
-      openBlockModal(type = 'rep', blockId = null) {
-        state.editingBlockId = blockId;
+      openActivityModal(type = 'reps', activityId = null) {
+        state.editingActivityId = activityId;
         const routine = state.editingRoutineDraft;
-        
-        if (blockId && routine) {
-          const block = routine.blocks.find(b => b.id === blockId);
-          if (block) {
-            type = block.type;
-            this.blockTypeSelect.value = type;
-            this.blockTitleInput.value = block.title;
-            if (type === 'rep') {
-              this.blockRepsInput.value = block.reps;
-              this.blockPaceInput.value = block.pace;
+
+        if (activityId && routine) {
+          const activity = routine.activities.find(a => a.id === activityId);
+          if (activity) {
+            type = activity.type;
+            this.activityTypeSelect.value = type;
+            this.activityTitleInput.value = activity.title;
+            if (type === 'reps') {
+              this.activityRepsInput.value = activity.reps;
+              this.activityPaceInput.value = activity.pace;
             } else {
-              this.blockDurationInput.value = block.duration;
-              this.blockInstructionsInput.value = block.instructions || '';
+              this.activityDurationInput.value = activity.duration;
+              this.activityInstructionsInput.value = activity.instructions || '';
             }
           }
         } else {
-          this.blockTypeSelect.value = type;
-          this.blockTitleInput.value = '';
-          this.blockRepsInput.value = 10;
-          this.blockPaceInput.value = 3.0;
-          this.blockDurationInput.value = 60;
-          this.blockInstructionsInput.value = '';
+          this.activityTypeSelect.value = type;
+          this.activityTitleInput.value = '';
+          this.activityRepsInput.value = 10;
+          this.activityPaceInput.value = 3.0;
+          this.activityDurationInput.value = 60;
+          this.activityInstructionsInput.value = '';
         }
 
-        this.toggleBlockModalFields(type);
-        this.blockModalOriginal = this.readBlockFormValues();
-        openSheet(this.blockModal);
-        pushBackGuard(() => this.handleBlockModalBack());
+        this.toggleActivityModalFields(type);
+        this.activityModalOriginal = this.readActivityFormValues();
+        openSheet(this.activityModal);
+        pushBackGuard(() => this.handleActivityModalBack());
       },
 
-      readBlockFormValues() {
+      readActivityFormValues() {
         return {
-          type: this.blockTypeSelect.value,
-          title: this.blockTitleInput.value,
-          reps: this.blockRepsInput.value,
-          pace: this.blockPaceInput.value,
-          duration: this.blockDurationInput.value,
-          instructions: this.blockInstructionsInput.value
+          type: this.activityTypeSelect.value,
+          title: this.activityTitleInput.value,
+          reps: this.activityRepsInput.value,
+          pace: this.activityPaceInput.value,
+          duration: this.activityDurationInput.value,
+          instructions: this.activityInstructionsInput.value
         };
       },
 
-      isBlockFormDirty() {
-        if (!this.blockModalOriginal) return false;
-        return JSON.stringify(this.readBlockFormValues()) !== JSON.stringify(this.blockModalOriginal);
+      isActivityFormDirty() {
+        if (!this.activityModalOriginal) return false;
+        return JSON.stringify(this.readActivityFormValues()) !== JSON.stringify(this.activityModalOriginal);
       },
 
       // Shared by both the explicit Cancel button and the back gesture -
       // only prompts when a field actually changed, closing silently
       // otherwise.
-      async handleBlockModalBack() {
-        if (!this.isBlockFormDirty()) {
-          this.closeBlockModal();
+      async handleActivityModalBack() {
+        if (!this.isActivityFormDirty()) {
+          this.closeActivityModal();
           return;
         }
 
-        const message = state.editingBlockId ? 'Discard changes to this block?' : 'Discard this new block?';
+        const message = state.editingActivityId ? 'Discard changes to this activity?' : 'Discard this new activity?';
         const discard = await showConfirmDialog({ title: 'Discard changes?', message, confirmLabel: 'Discard', danger: true });
         if (discard) {
-          this.closeBlockModal();
+          this.closeActivityModal();
         }
       },
 
-      toggleBlockModalFields(type) {
-        if (type === 'rep') {
-          this.repFields.classList.remove('hidden');
-          this.restFields.classList.add('hidden');
-          document.getElementById('rep-tip').style.display = 'flex';
-          this.blockTitleInput.placeholder = 'e.g., Push-ups';
+      toggleActivityModalFields(type) {
+        this.repsFields.classList.toggle('hidden', type !== 'reps');
+        this.durationFields.classList.toggle('hidden', type === 'reps');
+        this.instructionsFields.classList.toggle('hidden', type !== 'instructions');
+
+        const durationLabel = document.getElementById('activity-duration-label');
+        if (type === 'reps') {
+          this.activityTitleInput.placeholder = 'e.g., Push-ups';
+        } else if (type === 'exercise-timer') {
+          this.activityTitleInput.placeholder = 'e.g., Plank Hold';
+          durationLabel.textContent = 'Exercise Duration (seconds)';
+        } else if (type === 'instructions') {
+          this.activityTitleInput.placeholder = 'e.g., Get Ready';
+          durationLabel.textContent = 'Duration (seconds)';
         } else {
-          this.repFields.classList.add('hidden');
-          this.restFields.classList.remove('hidden');
-          document.getElementById('rep-tip').style.display = 'none';
-          this.blockTitleInput.placeholder = 'e.g., Cooldown';
+          this.activityTitleInput.placeholder = 'e.g., Rest';
+          durationLabel.textContent = 'Rest Duration (seconds)';
         }
       },
 
-      closeBlockModal() {
-        closeSheet(this.blockModal);
-        state.editingBlockId = null;
-        this.blockModalOriginal = null;
+      closeActivityModal() {
+        closeSheet(this.activityModal);
+        state.editingActivityId = null;
+        this.activityModalOriginal = null;
         closeTopBackGuard();
       },
 
-      duplicateBlock(blockId) {
+      duplicateActivity(activityId) {
         const routine = state.editingRoutineDraft;
-        if (!routine || !blockId) return;
+        if (!routine || !activityId) return;
 
-        const originalIndex = routine.blocks.findIndex(b => b.id === blockId);
+        const originalIndex = routine.activities.findIndex(a => a.id === activityId);
         if (originalIndex === -1) return;
 
-        const original = routine.blocks[originalIndex];
+        const original = routine.activities[originalIndex];
         const copy = JSON.parse(JSON.stringify(original));
-        copy.id = 'block-' + Date.now();
+        copy.id = 'activity-' + Date.now();
 
-        routine.blocks.splice(originalIndex + 1, 0, copy);
-        this.renderBlocksList(routine);
+        routine.activities.splice(originalIndex + 1, 0, copy);
+        this.renderActivitiesList(routine);
       },
 
-      saveBlock() {
+      saveActivity() {
         const routine = state.editingRoutineDraft;
         if (!routine) return;
 
-        const type = this.blockTypeSelect.value;
-        const title = this.blockTitleInput.value.trim();
+        const type = this.activityTypeSelect.value;
+        const title = this.activityTitleInput.value.trim();
 
         if (!title) {
-          showSnackbar('Block title cannot be empty.');
+          showSnackbar('Activity title cannot be empty.');
           return;
         }
 
-        let blockData = {
-          id: state.editingBlockId || 'block-' + Date.now(),
+        let activityData = {
+          id: state.editingActivityId || 'activity-' + Date.now(),
           type,
           title
         };
 
-        if (type === 'rep') {
-          const reps = parseInt(this.blockRepsInput.value, 10);
-          const pace = parseFloat(this.blockPaceInput.value);
+        if (type === 'reps') {
+          const reps = parseInt(this.activityRepsInput.value, 10);
+          const pace = parseFloat(this.activityPaceInput.value);
 
           if (reps < 1) {
             showSnackbar('Total Reps must be at least 1.');
@@ -2405,36 +2475,44 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             return;
           }
 
-          blockData.reps = Math.max(1, reps || 1);
-          blockData.pace = Math.max(0.5, pace || 1.0);
+          activityData.reps = Math.max(1, reps || 1);
+          activityData.pace = Math.max(0.5, pace || 1.0);
         } else {
-          blockData.duration = Math.max(1, parseInt(this.blockDurationInput.value, 10) || 1);
-          blockData.instructions = this.blockInstructionsInput.value.trim();
+          activityData.duration = Math.max(1, parseInt(this.activityDurationInput.value, 10) || 1);
+
+          if (type === 'instructions') {
+            const instructions = this.activityInstructionsInput.value.trim();
+            if (!instructions) {
+              showSnackbar('Instructions cannot be empty for this activity type.');
+              return;
+            }
+            activityData.instructions = instructions;
+          }
         }
 
-        if (state.editingBlockId) {
-          const idx = routine.blocks.findIndex(b => b.id === state.editingBlockId);
-          if (idx !== -1) routine.blocks[idx] = blockData;
+        if (state.editingActivityId) {
+          const idx = routine.activities.findIndex(a => a.id === state.editingActivityId);
+          if (idx !== -1) routine.activities[idx] = activityData;
         } else {
-          routine.blocks.push(blockData);
+          routine.activities.push(activityData);
         }
 
-        this.renderBlocksList(routine);
-        this.closeBlockModal();
+        this.renderActivitiesList(routine);
+        this.closeActivityModal();
       },
 
-      deleteBlock(blockId) {
+      deleteActivity(activityId) {
         const routine = state.editingRoutineDraft;
         if (!routine) return;
 
-        routine.blocks = routine.blocks.filter(b => b.id !== blockId);
-        this.renderBlocksList(routine);
+        routine.activities = routine.activities.filter(a => a.id !== activityId);
+        this.renderActivitiesList(routine);
       },
 
       startRoutine(id) {
         const routine = state.routines.find(r => r.id === id);
-        if (!routine || routine.blocks.length === 0) {
-          showSnackbar('Please add at least one block to start this routine.');
+        if (!routine || routine.activities.length === 0) {
+          showSnackbar('Please add at least one activity to start this routine.');
           return;
         }
         executionEngine.start(routine);
@@ -2496,7 +2574,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           try {
             const importedData = JSON.parse(e.target.result);
             if (importedData.routines) {
-              state.routines = importedData.routines;
+              state.routines = migrateRoutines(importedData.routines);
               saveRoutines();
             }
             if (importedData.settings) {
@@ -2588,7 +2666,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             }
 
             // Merge imported routines with existing ones (duplicates overwrite)
-            importedData.routines.forEach(importedRoutine => {
+            migrateRoutines(importedData.routines).forEach(importedRoutine => {
               const existingIndex = state.routines.findIndex(r => r.id === importedRoutine.id);
               if (existingIndex !== -1) {
                 state.routines[existingIndex] = importedRoutine;
@@ -2597,19 +2675,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               }
             });
 
-            // Clean up orphaned blocks - blocks that are referenced but don't exist
-            const allBlockIds = new Set();
+            // Remove any activities missing required data (basic validation)
             state.routines.forEach(routine => {
-              routine.blocks.forEach(block => {
-                allBlockIds.add(block.id);
-              });
-            });
-
-            // Remove orphaned blocks (none in this structure since blocks are inline, but keep for data integrity)
-            state.routines.forEach(routine => {
-              routine.blocks = routine.blocks.filter(block => {
-                // Keep blocks that have valid data (basic validation)
-                return block.id && block.type && block.title;
+              routine.activities = routine.activities.filter(activity => {
+                return activity.id && activity.type && activity.title;
               });
             });
 
@@ -2640,14 +2709,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             let importedRoutines;
             if (Array.isArray(importedData.routines)) {
               importedRoutines = importedData.routines;
-            } else if (importedData.blocks) {
+            } else if (importedData.activities || importedData.blocks) {
               importedRoutines = [importedData];
             } else {
               showSnackbar('Invalid routine JSON format.');
               return;
             }
 
-            importedRoutines.forEach((importedRoutine, i) => {
+            migrateRoutines(importedRoutines).forEach((importedRoutine, i) => {
               if (!importedRoutine.id) {
                 importedRoutine.id = 'routine-' + Date.now() + '-' + i;
               }
@@ -2660,7 +2729,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             });
 
             state.routines.forEach(routine => {
-              routine.blocks = routine.blocks.filter(block => block.id && block.type && block.title);
+              routine.activities = routine.activities.filter(activity => activity.id && activity.type && activity.title);
             });
 
             saveRoutines();
