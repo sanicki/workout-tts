@@ -263,29 +263,84 @@
     }
 
     /* Routine Lists */
-    .routine-item {
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Shared card layout: Routine cards and Block cards both use a drag
+       handle beside a stacked [title] + [5-column action grid] content
+       block, so they read as one consistent pattern. */
+    .item-card {
       background-color: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 10px;
       padding: 1rem;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 0.75rem;
     }
 
-    .routine-info h3 {
+    .item-card.dragging {
+      opacity: 0.5;
+      border-style: dashed;
+    }
+
+    .drag-handle {
+      cursor: grab;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .item-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .item-title {
       font-size: 1.1rem;
-      margin-bottom: 0.25rem;
+      font-weight: 700;
     }
 
-    .routine-info p {
-      font-size: 0.85rem;
+    .item-title .type-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
       color: var(--text-muted);
     }
 
-    .actions {
-      display: flex;
+    .item-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
       gap: 0.5rem;
+    }
+
+    .grid-tile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0.4rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      line-height: 1.3;
+    }
+
+    .grid-tile.align-left {
+      grid-column: span 2;
+      justify-content: flex-start;
+      text-align: left;
+    }
+
+    .item-actions-grid .btn {
+      width: 100%;
     }
 
     /* Block Items inside Editor */
@@ -295,39 +350,10 @@
       gap: 0.75rem;
     }
 
-    .block-item {
+    .block-list .item-card {
       background-color: var(--input-bg);
-      border: 1px solid var(--card-border);
       border-radius: 8px;
       padding: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .block-item.dragging {
-      opacity: 0.5;
-      border-style: dashed;
-    }
-
-    .drag-handle {
-      cursor: grab;
-      color: var(--text-muted);
-      font-size: 1.2rem;
-      user-select: none;
-    }
-
-    .block-details {
-      flex: 1;
-    }
-
-    .block-details h4 {
-      font-size: 0.95rem;
-    }
-
-    .block-details p {
-      font-size: 0.8rem;
-      color: var(--text-muted);
     }
 
     /* Active Player Overlay View */
@@ -1280,6 +1306,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
     const executionEngine = new ExecutionEngine();
 
+    // Material Design's "drag indicator" glyph (a 2x3 dot grip) - unlike a
+    // hamburger icon, this is the icon people actually recognize as "grab to
+    // reorder" rather than "open a menu".
+    const DRAG_HANDLE_SVG = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="9" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/>
+      <circle cx="15" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="15" cy="18" r="1.6"/>
+    </svg>`;
+
     /* =========================================================================
        5. UI HANDLER (DOM Interactions & Rendering)
        ========================================================================= */
@@ -1500,23 +1534,55 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       renderRoutinesList() {
         this.routinesContainer.innerHTML = '';
-        state.routines.forEach(routine => {
+        state.routines.forEach((routine, index) => {
           const item = document.createElement('div');
-          item.className = 'routine-item';
+          item.className = 'item-card';
+          item.draggable = true;
+          item.dataset.index = index;
           item.innerHTML = `
-            <div class="routine-info">
-              <h3>${escapeHTML(routine.name)}</h3>
-              <p>${routine.blocks.length} Blocks</p>
-            </div>
-            <div class="actions">
-              <button class="btn btn-primary btn-sm" onclick="ui.startRoutine('${routine.id}')">Start</button>
-              <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">✏️</button>
-              <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">📝</button>
-              <button class="btn btn-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')">✕</button>
+            <span class="drag-handle" title="Drag to reorder">${DRAG_HANDLE_SVG}</span>
+            <div class="item-content">
+              <div class="item-title">${escapeHTML(routine.name)}</div>
+              <div class="item-actions-grid">
+                <span class="grid-tile">${routine.blocks.length} Blocks</span>
+                <button class="btn btn-primary btn-sm" onclick="ui.startRoutine('${routine.id}')">Start</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">✏️</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">📝</button>
+                <button class="btn btn-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')">✕</button>
+              </div>
             </div>
           `;
+
+          // Drag and Drop reordering events
+          item.addEventListener('dragstart', (e) => {
+            item.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', index);
+          });
+
+          item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+          });
+
+          item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+          });
+
+          item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            this.reorderRoutines(fromIndex, index);
+          });
+
           this.routinesContainer.appendChild(item);
         });
+      },
+
+      reorderRoutines(fromIndex, toIndex) {
+        if (fromIndex === toIndex) return;
+        const [movedRoutine] = state.routines.splice(fromIndex, 1);
+        state.routines.splice(toIndex, 0, movedRoutine);
+        saveRoutines();
+        this.renderRoutinesList();
       },
 
       createRoutine() {
@@ -1629,7 +1695,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         routine.blocks.forEach((block, index) => {
           const item = document.createElement('div');
-          item.className = 'block-item';
+          item.className = 'item-card';
           item.draggable = true;
           item.dataset.index = index;
 
@@ -1641,15 +1707,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
 
           item.innerHTML = `
-            <span class="drag-handle">☰</span>
-            <div class="block-details">
-              <h4>${escapeHTML(block.title)} <span style="font-size:0.75rem; color:var(--text-muted);">(${block.type.toUpperCase()})</span></h4>
-              <p>${details}</p>
-            </div>
-            <div class="actions">
-              <button class="btn btn-icon btn-sm" onclick="ui.openBlockModal(null, '${block.id}')" title="Edit Block">✏️</button>
-              <button class="btn btn-icon btn-sm" onclick="ui.duplicateBlock('${block.id}')" title="Duplicate Block">📝</button>
-              <button class="btn btn-danger btn-sm" onclick="ui.deleteBlock('${block.id}')">✕</button>
+            <span class="drag-handle" title="Drag to reorder">${DRAG_HANDLE_SVG}</span>
+            <div class="item-content">
+              <div class="item-title">${escapeHTML(block.title)} <span class="type-badge">(${block.type.toUpperCase()})</span></div>
+              <div class="item-actions-grid">
+                <span class="grid-tile align-left">${details}</span>
+                <button class="btn btn-icon btn-sm" onclick="ui.openBlockModal(null, '${block.id}')" title="Edit Block">✏️</button>
+                <button class="btn btn-icon btn-sm" onclick="ui.duplicateBlock('${block.id}')" title="Duplicate Block">📝</button>
+                <button class="btn btn-danger btn-sm" onclick="ui.deleteBlock('${block.id}')">✕</button>
+              </div>
             </div>
           `;
 
