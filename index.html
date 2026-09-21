@@ -227,6 +227,23 @@
       color: var(--text-muted);
     }
 
+    /* Field-level validation - marks which input failed and why, in place
+       (Material's convention for form errors), rather than only a
+       transient snackbar elsewhere on screen that doesn't point at the
+       field's border. */
+    .input-error {
+      border-color: var(--danger) !important;
+    }
+
+    .field-error {
+      font-size: 0.8rem;
+      color: var(--danger);
+    }
+
+    .field-error[hidden] {
+      display: none;
+    }
+
     input[type="text"],
     input[type="number"],
     textarea,
@@ -241,6 +258,19 @@
       font-family: inherit;
     }
 
+    /* Material's text field spec treats a visible focus indicator as
+       required, not optional - the border alone recoloring to accent
+       communicates "this field is active" the way its default browser
+       outline (often suppressed by user-agent stylesheets) doesn't. */
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    textarea:focus,
+    select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+      border-color: var(--accent);
+    }
+
     textarea {
       resize: vertical;
       min-height: 80px;
@@ -251,17 +281,64 @@
       accent-color: var(--accent);
     }
 
-    .checkbox-group {
+    /* Switch - Material's component for a standalone binary setting
+       (distinct from Checkbox, which is reserved for multi-select from a
+       list, like the export picker). The underlying <input type="checkbox">
+       stays fully functional and accessible - visually hidden rather than
+       display:none, so it's still focusable and keyboard-operable - with
+       the track/thumb drawn as sibling elements styled off its :checked
+       state, since browser support for ::before/::after on <input> itself
+       is unreliable (notably in Safari). */
+    .switch {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
       cursor: pointer;
+      min-height: 48px;
+      padding: 0.5rem 0;
     }
 
-    .checkbox-group input {
-      width: 1.2rem;
-      height: 1.2rem;
-      accent-color: var(--accent);
+    .switch input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .switch-track {
+      position: relative;
+      flex-shrink: 0;
+      width: 44px;
+      height: 26px;
+      border-radius: 999px;
+      background: var(--card-border);
+      transition: background-color 0.2s ease;
+    }
+
+    .switch input:checked + .switch-track {
+      background: var(--accent);
+    }
+
+    .switch input:focus-visible + .switch-track {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .switch-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: var(--elevation-1);
+      transition: transform 0.2s ease;
+    }
+
+    .switch input:checked + .switch-track .switch-thumb {
+      transform: translateX(18px);
     }
 
     .favorite-toggle-row {
@@ -352,11 +429,12 @@
     /* Material's default icon button has no border at all - just the icon,
        with a background tint on hover/press for tap feedback. A row of
        bordered "chips" reads as a wall of boxes; plain icons read as a row
-       of actions. */
+       of actions. Touch target is 48px, Material's minimum (not 44px,
+       which is iOS HIG's number). */
     .btn-icon {
       padding: 0.4rem 0.6rem;
-      min-width: 44px;
-      min-height: 44px;
+      min-width: 48px;
+      min-height: 48px;
       background: transparent;
       color: var(--text-muted);
       border: none;
@@ -560,7 +638,7 @@
       font-size: 1rem;
       font-weight: 700;
       padding: 0.5rem 0.75rem;
-      min-height: 44px;
+      min-height: 48px;
       cursor: pointer;
     }
 
@@ -921,14 +999,16 @@
       <div class="card">
         <div class="card-title">Audio & Feedback</div>
 
-        <label class="checkbox-group">
+        <label class="switch">
           <input type="checkbox" id="chk-ticks" checked>
-          <span>Interval Tick/Chime Tone</span>
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span class="switch-label">Interval Tick/Chime Tone</span>
         </label>
 
-        <label class="checkbox-group">
+        <label class="switch">
           <input type="checkbox" id="chk-haptics" checked>
-          <span>Haptic Feedback (Vibration)</span>
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span class="switch-label">Haptic Feedback (Vibration)</span>
         </label>
       </div>
 
@@ -1016,6 +1096,7 @@
       <div class="form-group">
         <label for="routine-name-input">Routine Name</label>
         <input type="text" id="routine-name-input" placeholder="e.g., Morning Calisthenics">
+        <p id="routine-name-error" class="field-error" hidden></p>
       </div>
 
       <div class="card-title">
@@ -1065,7 +1146,7 @@
         <p class="sheet-description">Choose which routines you want to export:</p>
       </div>
       <div class="sheet-body">
-        <div id="export-routines-list" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+        <div id="export-routines-list" style="border: 1px solid var(--card-border); border-radius: 6px; padding: 1rem;">
           <!-- Routines checkboxes will be populated here -->
         </div>
       </div>
@@ -1097,6 +1178,7 @@
         <div class="form-group">
           <label for="activity-title-input">Title / Exercise Name</label>
           <input type="text" id="activity-title-input" placeholder="e.g., Push-ups">
+          <p id="activity-title-error" class="field-error" hidden></p>
         </div>
 
         <div id="reps-fields">
@@ -1104,10 +1186,12 @@
             <div class="form-group">
               <label for="activity-reps-input">Total Reps</label>
               <input type="number" id="activity-reps-input" min="1" value="10">
+              <p id="activity-reps-error" class="field-error" hidden></p>
             </div>
             <div class="form-group">
               <label for="activity-pace-input">Pace / Rep (s)</label>
               <input type="number" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
+              <p id="activity-pace-error" class="field-error" hidden></p>
             </div>
           </div>
         </div>
@@ -1123,6 +1207,7 @@
           <div class="form-group">
             <label for="activity-instructions-input">Instructions</label>
             <textarea id="activity-instructions-input" placeholder="e.g., Assume the push-up position on your yoga mat. Shoulders back. Hands directly beneath your shoulders."></textarea>
+            <p id="activity-instructions-error" class="field-error" hidden></p>
           </div>
         </div>
 
@@ -1874,8 +1959,28 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     }
 
     /* =========================================================================
-       4.5. SNACKBAR + DIALOG (replacing native alert()/confirm())
+       4.5. FIELD VALIDATION + SNACKBAR + DIALOG
        ========================================================================= */
+    // Marks which field failed and why, in place - Material's convention for
+    // form errors - rather than relying on a snackbar elsewhere on screen
+    // that doesn't point at the actual input.
+    function setFieldError(inputEl, errorId, message) {
+      inputEl.classList.add('input-error');
+      const errorEl = document.getElementById(errorId);
+      if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.hidden = false;
+      }
+    }
+
+    function clearFieldError(inputEl, errorId) {
+      inputEl.classList.remove('input-error');
+      const errorEl = document.getElementById(errorId);
+      if (errorEl) {
+        errorEl.hidden = true;
+      }
+    }
+
     let activeSnackbarTimeout = null;
 
     // Brief, non-blocking feedback - validation messages, save/import
@@ -2196,6 +2301,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         document.getElementById('fab-new-routine').addEventListener('click', () => this.createRoutine());
         document.getElementById('btn-save-routine').addEventListener('click', () => this.saveRoutine());
         document.getElementById('btn-cancel-routine').addEventListener('click', () => this.handleEditorBack());
+        this.routineNameInput.addEventListener('input', () => clearFieldError(this.routineNameInput, 'routine-name-error'));
 
         setupReorderable(this.routinesContainer, '.item-card', (from, to) => this.reorderRoutines(from, to));
         setupReorderable(this.activityListContainer, '.item-card', (from, to) => this.reorderActivities(from, to));
@@ -2226,6 +2332,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           input.addEventListener('input', () => this.refreshFavoriteMatchState());
         });
         this.activityTypeSelect.addEventListener('change', () => this.refreshFavoriteMatchState());
+
+        [
+          [this.activityTitleInput, 'activity-title-error'],
+          [this.activityRepsInput, 'activity-reps-error'],
+          [this.activityPaceInput, 'activity-pace-error'],
+          [this.activityInstructionsInput, 'activity-instructions-error']
+        ].forEach(([input, errorId]) => {
+          input.addEventListener('input', () => clearFieldError(input, errorId));
+        });
 
         // Player UI Actions
         this.btnPause.addEventListener('click', () => executionEngine.pause());
@@ -2376,6 +2491,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         state.editingRoutineOriginal = JSON.stringify(state.editingRoutineDraft);
 
         this.routineNameInput.value = '';
+        clearFieldError(this.routineNameInput, 'routine-name-error');
         this.renderActivitiesList(state.editingRoutineDraft);
 
         this.routineEditorView.hidden = false;
@@ -2392,6 +2508,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         state.editingRoutineOriginal = JSON.stringify(state.editingRoutineDraft);
 
         this.routineNameInput.value = state.editingRoutineDraft.name;
+        clearFieldError(this.routineNameInput, 'routine-name-error');
         this.renderActivitiesList(state.editingRoutineDraft);
 
         this.routineEditorView.hidden = false;
@@ -2412,9 +2529,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       saveRoutine() {
         const name = this.routineNameInput.value.trim();
         if (!name) {
-          showSnackbar('Routine name cannot be empty.');
+          setFieldError(this.routineNameInput, 'routine-name-error', 'Routine name cannot be empty.');
           return;
         }
+        clearFieldError(this.routineNameInput, 'routine-name-error');
 
         if (!state.editingRoutineDraft) return;
 
@@ -2578,6 +2696,13 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         this.toggleActivityModalFields(type);
 
+        [
+          [this.activityTitleInput, 'activity-title-error'],
+          [this.activityRepsInput, 'activity-reps-error'],
+          [this.activityPaceInput, 'activity-pace-error'],
+          [this.activityInstructionsInput, 'activity-instructions-error']
+        ].forEach(([input, errorId]) => clearFieldError(input, errorId));
+
         // Seed the favorite heart from whatever's actually in Favorites
         // right now, so re-opening an activity that was added from a
         // favorite (or happens to exactly match one) starts filled/"Saved".
@@ -2710,9 +2835,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         const title = this.activityTitleInput.value.trim();
 
         if (!title) {
-          showSnackbar('Activity title cannot be empty.');
+          setFieldError(this.activityTitleInput, 'activity-title-error', 'Activity title cannot be empty.');
           return;
         }
+        clearFieldError(this.activityTitleInput, 'activity-title-error');
 
         let activityData = {
           id: state.editingActivityId || 'activity-' + Date.now(),
@@ -2725,13 +2851,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           const pace = parseFloat(this.activityPaceInput.value);
 
           if (reps < 1) {
-            showSnackbar('Total Reps must be at least 1.');
+            setFieldError(this.activityRepsInput, 'activity-reps-error', 'Total Reps must be at least 1.');
             return;
           }
+          clearFieldError(this.activityRepsInput, 'activity-reps-error');
           if (pace <= 0) {
-            showSnackbar('Pace must be greater than 0 seconds.');
+            setFieldError(this.activityPaceInput, 'activity-pace-error', 'Pace must be greater than 0 seconds.');
             return;
           }
+          clearFieldError(this.activityPaceInput, 'activity-pace-error');
 
           activityData.reps = Math.max(1, reps || 1);
           activityData.pace = Math.max(0.5, pace || 1.0);
@@ -2741,9 +2869,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           if (type === 'instructions') {
             const instructions = this.activityInstructionsInput.value.trim();
             if (!instructions) {
-              showSnackbar('Instructions cannot be empty for this activity type.');
+              setFieldError(this.activityInstructionsInput, 'activity-instructions-error', 'Instructions cannot be empty for this activity type.');
               return;
             }
+            clearFieldError(this.activityInstructionsInput, 'activity-instructions-error');
             activityData.instructions = instructions;
           }
         }
@@ -2959,7 +3088,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           label.style.display = 'flex';
           label.style.alignItems = 'center';
           label.style.padding = '0.5rem';
-          label.style.borderBottom = '1px solid var(--border-color)';
+          label.style.borderBottom = '1px solid var(--card-border)';
 
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';
