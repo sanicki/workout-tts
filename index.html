@@ -379,7 +379,11 @@
        handle beside a stacked [title] + [5-column action grid] content
        block, so they read as one consistent pattern. */
     .item-card {
-      background-color: var(--card-bg);
+      /* Both Routine cards and Block cards are nested inside a --card-bg
+         parent card (the "My Routines" card and the "Edit Routine" card,
+         respectively), so both use the same slightly-different nested
+         surface color rather than blending into their parent. */
+      background-color: var(--input-bg);
       border: 1px solid var(--card-border);
       border-radius: 10px;
       padding: 1rem;
@@ -467,7 +471,6 @@
     }
 
     .block-list .item-card {
-      background-color: var(--input-bg);
       border-radius: 8px;
       padding: 0.75rem;
     }
@@ -1156,10 +1159,22 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     /* =========================================================================
        2. NAVIGATION GUARD (Back Button / Gesture Interception)
        ========================================================================= */
-    // Overlays (routine editor, block modal, export modal, player) push a history
-    // entry when opened. A device/browser back triggers popstate instead of
-    // silently closing the overlay or exiting the app; the top guard's onBack()
+    // Overlays (routine editor, block modal, export modal, player) push a
+    // history entry when opened. A device/browser back triggers popstate
+    // instead of silently closing the overlay; the top guard's onBack()
     // decides whether to show a contextual warning before actually closing.
+    //
+    // Deliberately NOT guarded: the app's root screens (Routines/Settings/
+    // Backup). An earlier version primed a buffer history entry there to
+    // intercept back-to-exit with a confirmation dialog, but that's an
+    // anti-pattern Android/Material explicitly advise against - and in
+    // practice it was unreliable, since Android can kill and restart a PWA's
+    // process at any time, and Chrome restores the prior navigation history
+    // on restart. Priming a new buffer entry on every restart just stacks
+    // more of our own entries on top of whatever survived, so "confirm exit"
+    // could land back on another one of our entries instead of actually
+    // exiting. Leaving the root unguarded means back there is always native,
+    // unconditional, and reliable.
     const backGuardStack = [];
     let suppressedPopstates = 0;
 
@@ -1177,31 +1192,20 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       history.back();
     }
 
-    window.addEventListener('popstate', async () => {
+    window.addEventListener('popstate', () => {
       if (suppressedPopstates > 0) {
         suppressedPopstates--;
         return;
       }
 
       const onBack = backGuardStack[backGuardStack.length - 1];
-      if (onBack) {
-        // Re-arm this guard's history entry; onBack() decides whether to keep the
-        // overlay open (do nothing) or close it (which pops the guard for real).
-        history.pushState({ guardDepth: backGuardStack.length }, '');
-        onBack();
-      } else {
-        const shouldExit = await showConfirmDialog({ title: 'Exit Workout TTS?', message: 'You can always reopen the app from your home screen.', confirmLabel: 'Exit' });
-        if (shouldExit) {
-          history.back();
-        } else {
-          history.pushState({ guardDepth: 0 }, '');
-        }
-      }
-    });
+      if (!onBack) return; // No overlay open - let native back/exit behavior stand.
 
-    // Prime one buffer entry so the very first back press is caught instead of
-    // exiting the app immediately.
-    history.pushState({ guardDepth: 0 }, '');
+      // Re-arm this guard's history entry; onBack() decides whether to keep the
+      // overlay open (do nothing) or close it (which pops the guard for real).
+      history.pushState({ guardDepth: backGuardStack.length }, '');
+      onBack();
+    });
 
     /* =========================================================================
        3. AUDIO ENGINE (TTS & Web Audio API Synthesizer)
@@ -1587,6 +1591,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     const EDIT_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`;
     const COPY_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
     const DELETE_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
+    const PLAY_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
 
     /* =========================================================================
        4.5. SNACKBAR + DIALOG (replacing native alert()/confirm())
@@ -1907,7 +1912,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         // Routine CRUD
         fab.addEventListener('click', () => this.createRoutine());
         document.getElementById('btn-save-routine').addEventListener('click', () => this.saveRoutine());
-        document.getElementById('btn-cancel-routine').addEventListener('click', () => this.cancelRoutineEdit());
+        document.getElementById('btn-cancel-routine').addEventListener('click', () => this.handleEditorBack());
 
         setupReorderable(this.routinesContainer, '.item-card', (from, to) => this.reorderRoutines(from, to));
         setupReorderable(this.blockListContainer, '.item-card', (from, to) => this.reorderBlocks(from, to));
@@ -1915,7 +1920,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         // Block Modal Triggers
         document.getElementById('btn-add-rep-block').addEventListener('click', () => this.openBlockModal('rep'));
         document.getElementById('btn-add-rest-block').addEventListener('click', () => this.openBlockModal('rest'));
-        document.getElementById('btn-cancel-block').addEventListener('click', () => this.closeBlockModal());
+        document.getElementById('btn-cancel-block').addEventListener('click', () => this.handleBlockModalBack());
         document.getElementById('btn-save-block').addEventListener('click', () => this.saveBlock());
 
         this.blockTypeSelect.addEventListener('change', (e) => {
@@ -2039,7 +2044,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               <div class="item-title">${escapeHTML(routine.name)}</div>
               <div class="item-actions-grid">
                 <span class="grid-tile">${routine.blocks.length} Blocks</span>
-                <button class="btn btn-primary btn-sm" onclick="ui.startRoutine('${routine.id}')">Start</button>
+                <button class="btn btn-primary btn-sm" onclick="ui.startRoutine('${routine.id}')" title="Start Routine">${PLAY_ICON_SVG}</button>
                 <button class="btn btn-icon btn-sm" onclick="ui.editRoutine('${routine.id}')" title="Edit">${EDIT_ICON_SVG}</button>
                 <button class="btn btn-icon btn-sm" onclick="ui.duplicateRoutine('${routine.id}')" title="Duplicate">${COPY_ICON_SVG}</button>
                 <button class="btn btn-icon btn-icon-danger btn-sm" onclick="ui.deleteRoutine('${routine.id}')" title="Delete">${DELETE_ICON_SVG}</button>
@@ -2066,6 +2071,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         };
         state.currentEditingRoutineId = newRoutine.id;
         state.editingRoutineDraft = JSON.parse(JSON.stringify(newRoutine));
+        state.editingRoutineOriginal = JSON.stringify(state.editingRoutineDraft);
 
         this.routineNameInput.value = '';
         this.renderBlocksList(state.editingRoutineDraft);
@@ -2081,6 +2087,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         state.currentEditingRoutineId = id;
         state.editingRoutineDraft = JSON.parse(JSON.stringify(routine));
+        state.editingRoutineOriginal = JSON.stringify(state.editingRoutineDraft);
 
         this.routineNameInput.value = state.editingRoutineDraft.name;
         this.renderBlocksList(state.editingRoutineDraft);
@@ -2088,6 +2095,16 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.routineListView.classList.add('hidden');
         this.routineEditorView.classList.remove('hidden');
         pushBackGuard(() => this.handleEditorBack());
+      },
+
+      // The name input isn't wired to state.editingRoutineDraft.name live (it's
+      // only read at save time), so this checks the live input value rather
+      // than just diffing the draft object.
+      isRoutineDraftDirty() {
+        if (!state.editingRoutineDraft || !state.editingRoutineOriginal) return false;
+        const original = JSON.parse(state.editingRoutineOriginal);
+        if (this.routineNameInput.value.trim() !== original.name) return true;
+        return JSON.stringify(state.editingRoutineDraft.blocks) !== JSON.stringify(original.blocks);
       },
 
       saveRoutine() {
@@ -2113,20 +2130,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         showSnackbar('Routine saved.');
       },
 
-      async cancelRoutineEdit() {
-        if (state.editingRoutineDraft && state.editingRoutineDraft.blocks.length === 0) {
-          const discard = await showConfirmDialog({
-            title: 'Discard routine?',
-            message: 'This routine has no blocks. Are you sure you want to discard it?',
-            confirmLabel: 'Discard',
-            danger: true
-          });
-          if (!discard) return;
-        }
-        this.closeEditor();
-      },
-
+      // Shared by both the explicit Cancel button and the back gesture -
+      // only prompts when something was actually changed, closing silently
+      // otherwise (there's nothing to lose).
       async handleEditorBack() {
+        if (!this.isRoutineDraftDirty()) {
+          this.closeEditor();
+          return;
+        }
+
         const draft = state.editingRoutineDraft;
         const message = (draft && draft.blocks.length === 0)
           ? 'This routine has no blocks. Discard it?'
@@ -2140,6 +2152,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       closeEditor() {
         state.currentEditingRoutineId = null;
         state.editingRoutineDraft = null;
+        state.editingRoutineOriginal = null;
         this.routineEditorView.classList.add('hidden');
         this.routineListView.classList.remove('hidden');
         this.renderRoutinesList();
@@ -2245,11 +2258,36 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
 
         this.toggleBlockModalFields(type);
+        this.blockModalOriginal = this.readBlockFormValues();
         openSheet(this.blockModal);
         pushBackGuard(() => this.handleBlockModalBack());
       },
 
+      readBlockFormValues() {
+        return {
+          type: this.blockTypeSelect.value,
+          title: this.blockTitleInput.value,
+          reps: this.blockRepsInput.value,
+          pace: this.blockPaceInput.value,
+          duration: this.blockDurationInput.value,
+          instructions: this.blockInstructionsInput.value
+        };
+      },
+
+      isBlockFormDirty() {
+        if (!this.blockModalOriginal) return false;
+        return JSON.stringify(this.readBlockFormValues()) !== JSON.stringify(this.blockModalOriginal);
+      },
+
+      // Shared by both the explicit Cancel button and the back gesture -
+      // only prompts when a field actually changed, closing silently
+      // otherwise.
       async handleBlockModalBack() {
+        if (!this.isBlockFormDirty()) {
+          this.closeBlockModal();
+          return;
+        }
+
         const message = state.editingBlockId ? 'Discard changes to this block?' : 'Discard this new block?';
         const discard = await showConfirmDialog({ title: 'Discard changes?', message, confirmLabel: 'Discard', danger: true });
         if (discard) {
@@ -2274,6 +2312,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       closeBlockModal() {
         closeSheet(this.blockModal);
         state.editingBlockId = null;
+        this.blockModalOriginal = null;
         closeTopBackGuard();
       },
 
