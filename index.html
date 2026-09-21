@@ -784,7 +784,7 @@
         <div class="card-title mt-1">
           <span>Activities</span>
           <div class="actions">
-            <button id="btn-from-library" class="btn btn-secondary btn-sm">+ From Library</button>
+            <button id="btn-from-favorites" class="btn btn-secondary btn-sm">+ Favorites</button>
             <button id="btn-add-activity" class="btn btn-secondary btn-sm">+ Add Activity</button>
           </div>
         </div>
@@ -997,8 +997,8 @@
       </div>
 
       <label class="checkbox-group mt-1">
-        <input type="checkbox" id="chk-save-to-library">
-        <span>Also save to Activity Library (for reuse in other routines)</span>
+        <input type="checkbox" id="chk-save-to-favorites">
+        <span>Also save to Favorites (for reuse in other routines)</span>
       </label>
 
       <div class="row mt-1">
@@ -1008,16 +1008,16 @@
     </div>
   </div>
 
-  <!-- Bottom sheet for picking a saved Activity from the Library to reuse in the current routine -->
-  <div id="library-picker-modal" class="sheet-backdrop" hidden>
+  <!-- Bottom sheet for picking a Favorite Activity to reuse in the current routine -->
+  <div id="favorites-picker-modal" class="sheet-backdrop" hidden>
     <div class="sheet">
-      <h3>Activity Library</h3>
-      <p style="font-size:0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Tap a saved activity to add a copy to this routine.</p>
-      <div id="library-picker-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
-        <!-- Library items populated via JS -->
+      <h3>Favorite Activities</h3>
+      <p style="font-size:0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Tap a favorite to add a copy to this routine.</p>
+      <div id="favorites-picker-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Favorite items populated via JS -->
       </div>
       <div class="row mt-1">
-        <button id="btn-cancel-library-picker" class="btn btn-secondary">Close</button>
+        <button id="btn-cancel-favorites-picker" class="btn btn-secondary">Close</button>
       </div>
     </div>
   </div>
@@ -1028,7 +1028,7 @@
        ========================================================================= */
     const STORAGE_KEY_ROUTINES = 'vrc_routines';
     const STORAGE_KEY_SETTINGS = 'vrc_settings';
-    const STORAGE_KEY_LIBRARY = 'vrc_activity_library';
+    const STORAGE_KEY_FAVORITES = 'vrc_favorite_activities';
 
     const defaultRoutines = [
       {
@@ -1088,7 +1088,7 @@
     let state = {
       routines: migrateRoutines(JSON.parse(localStorage.getItem(STORAGE_KEY_ROUTINES)) || defaultRoutines),
       settings: Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}')),
-      activityLibrary: JSON.parse(localStorage.getItem(STORAGE_KEY_LIBRARY) || '[]'),
+      favorites: JSON.parse(localStorage.getItem(STORAGE_KEY_FAVORITES) || '[]'),
       currentEditingRoutineId: null,
       editingRoutineDraft: null,
       editingActivityId: null
@@ -1211,8 +1211,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
     }
 
-    function saveLibrary() {
-      localStorage.setItem(STORAGE_KEY_LIBRARY, JSON.stringify(state.activityLibrary));
+    function saveFavorites() {
+      localStorage.setItem(STORAGE_KEY_FAVORITES, JSON.stringify(state.favorites));
     }
 
     function formatDurationSpeech(seconds) {
@@ -1698,7 +1698,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       'rest': 'REST'
     };
 
-    // Shared by the routine editor's activity list and the library picker,
+    // Shared by the routine editor's activity list and the favorites picker,
     // since both render the same per-type summary line.
     function getActivityDetailsText(activity) {
       if (activity.type === 'reps') {
@@ -1962,9 +1962,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       repsFields: document.getElementById('reps-fields'),
       durationFields: document.getElementById('duration-fields'),
       instructionsFields: document.getElementById('instructions-fields'),
-      saveToLibraryCheckbox: document.getElementById('chk-save-to-library'),
-      libraryPickerModal: document.getElementById('library-picker-modal'),
-      libraryPickerList: document.getElementById('library-picker-list'),
+      saveToFavoritesCheckbox: document.getElementById('chk-save-to-favorites'),
+      favoritesPickerModal: document.getElementById('favorites-picker-modal'),
+      favoritesPickerList: document.getElementById('favorites-picker-list'),
 
       init() {
         this.bindEvents();
@@ -2041,9 +2041,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         document.getElementById('btn-cancel-activity').addEventListener('click', () => this.handleActivityModalBack());
         document.getElementById('btn-save-activity').addEventListener('click', () => this.saveActivity());
 
-        // Activity Library Picker
-        document.getElementById('btn-from-library').addEventListener('click', () => this.showLibraryPicker());
-        document.getElementById('btn-cancel-library-picker').addEventListener('click', () => this.closeLibraryPicker());
+        // Favorite Activities Picker
+        document.getElementById('btn-from-favorites').addEventListener('click', () => this.showFavoritesPicker());
+        document.getElementById('btn-cancel-favorites-picker').addEventListener('click', () => this.closeFavoritesPicker());
 
         this.activityTypeSelect.addEventListener('change', (e) => {
           this.toggleActivityModalFields(e.target.value);
@@ -2400,7 +2400,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.activityInstructionsInput.value = '';
         }
 
-        this.saveToLibraryCheckbox.checked = false;
+        this.saveToFavoritesCheckbox.checked = false;
         this.toggleActivityModalFields(type);
         this.activityModalOriginal = this.readActivityFormValues();
         openSheet(this.activityModal);
@@ -2527,14 +2527,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
         }
 
-        if (this.saveToLibraryCheckbox.checked) {
+        if (this.saveToFavoritesCheckbox.checked) {
           // Independent copy, not a live reference - editing or deleting the
-          // library entry later must not retroactively affect this routine's
+          // favorite later must not retroactively affect this routine's
           // activity (same mental model as "Duplicate" elsewhere in the app).
-          const libraryCopy = JSON.parse(JSON.stringify(activityData));
-          libraryCopy.id = 'lib-' + Date.now();
-          state.activityLibrary.push(libraryCopy);
-          saveLibrary();
+          const favoriteCopy = JSON.parse(JSON.stringify(activityData));
+          favoriteCopy.id = 'fav-' + Date.now();
+          state.favorites.push(favoriteCopy);
+          saveFavorites();
         }
 
         if (state.editingActivityId) {
@@ -2559,75 +2559,75 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       // A picker opened from within the routine editor (not a bottom-nav
       // destination - it's a content picker for an in-progress workflow,
       // same as Android's own picker pattern), listing activities saved via
-      // the "Save to Library" checkbox in the Configure Activity sheet.
-      showLibraryPicker() {
-        this.renderLibraryPickerList();
-        openSheet(this.libraryPickerModal);
-        pushBackGuard(() => this.closeLibraryPicker());
+      // the "Save to Favorites" checkbox in the Configure Activity sheet.
+      showFavoritesPicker() {
+        this.renderFavoritesPickerList();
+        openSheet(this.favoritesPickerModal);
+        pushBackGuard(() => this.closeFavoritesPicker());
       },
 
-      closeLibraryPicker() {
-        closeSheet(this.libraryPickerModal);
+      closeFavoritesPicker() {
+        closeSheet(this.favoritesPickerModal);
         closeTopBackGuard();
       },
 
-      renderLibraryPickerList() {
-        this.libraryPickerList.innerHTML = '';
+      renderFavoritesPickerList() {
+        this.favoritesPickerList.innerHTML = '';
 
-        if (state.activityLibrary.length === 0) {
-          this.libraryPickerList.innerHTML = `<p style="font-size:0.85rem; color: var(--text-muted); text-align:center;">No saved activities yet. Use "Save to Library" when configuring an activity.</p>`;
+        if (state.favorites.length === 0) {
+          this.favoritesPickerList.innerHTML = `<p style="font-size:0.85rem; color: var(--text-muted); text-align:center;">No favorite activities yet. Use "Save to Favorites" when configuring an activity.</p>`;
           return;
         }
 
-        state.activityLibrary.forEach((libItem) => {
+        state.favorites.forEach((favItem) => {
           const item = document.createElement('div');
           item.className = 'item-card';
 
-          const details = getActivityDetailsText(libItem);
-          const badgeLabel = ACTIVITY_TYPE_BADGE_LABELS[libItem.type] || libItem.type.toUpperCase();
+          const details = getActivityDetailsText(favItem);
+          const badgeLabel = ACTIVITY_TYPE_BADGE_LABELS[favItem.type] || favItem.type.toUpperCase();
 
           item.innerHTML = `
-            <div class="item-content" style="cursor: pointer;" onclick="ui.addFromLibrary('${libItem.id}')">
-              <div class="item-title">${escapeHTML(libItem.title)} <span class="type-badge">(${badgeLabel})</span></div>
+            <div class="item-content" style="cursor: pointer;" onclick="ui.addFromFavorites('${favItem.id}')">
+              <div class="item-title">${escapeHTML(favItem.title)} <span class="type-badge">(${badgeLabel})</span></div>
               <div style="font-size: 0.85rem; color: var(--text-muted);">${details}</div>
             </div>
-            <button class="btn btn-icon btn-icon-danger btn-sm" onclick="event.stopPropagation(); ui.deleteFromLibrary('${libItem.id}')" title="Remove from Library">${DELETE_ICON_SVG}</button>
+            <button class="btn btn-icon btn-icon-danger btn-sm" onclick="event.stopPropagation(); ui.deleteFromFavorites('${favItem.id}')" title="Remove from Favorites">${DELETE_ICON_SVG}</button>
           `;
 
-          this.libraryPickerList.appendChild(item);
+          this.favoritesPickerList.appendChild(item);
         });
       },
 
       // Adds an independent copy into the currently-edited routine - not a
-      // live reference to the library entry, matching the app's existing
+      // live reference to the favorite, matching the app's existing
       // "Duplicate" mental model.
-      addFromLibrary(libraryId) {
+      addFromFavorites(favoriteId) {
         const routine = state.editingRoutineDraft;
         if (!routine) return;
 
-        const libItem = state.activityLibrary.find(a => a.id === libraryId);
-        if (!libItem) return;
+        const favItem = state.favorites.find(a => a.id === favoriteId);
+        if (!favItem) return;
 
-        const copy = JSON.parse(JSON.stringify(libItem));
+        const copy = JSON.parse(JSON.stringify(favItem));
         copy.id = 'activity-' + Date.now();
 
         routine.activities.push(copy);
         this.renderActivitiesList(routine);
-        this.closeLibraryPicker();
-        showSnackbar(`Added "${libItem.title}" to routine.`);
+        this.closeFavoritesPicker();
+        showSnackbar(`Added "${favItem.title}" to routine.`);
       },
 
-      async deleteFromLibrary(libraryId) {
+      async deleteFromFavorites(favoriteId) {
         const confirmed = await showConfirmDialog({
-          title: 'Remove from library?',
-          message: 'Remove this saved activity from your library? This won\'t affect routines that already use it.',
+          title: 'Remove from Favorites?',
+          message: 'Remove this activity from your Favorites? This won\'t affect routines that already use it.',
           confirmLabel: 'Remove',
           danger: true
         });
         if (confirmed) {
-          state.activityLibrary = state.activityLibrary.filter(a => a.id !== libraryId);
-          saveLibrary();
-          this.renderLibraryPickerList();
+          state.favorites = state.favorites.filter(a => a.id !== favoriteId);
+          saveFavorites();
+          this.renderFavoritesPickerList();
         }
       },
 
@@ -2704,9 +2704,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               saveSettings();
               this.loadSettingsUI();
             }
-            if (Array.isArray(importedData.activityLibrary)) {
-              state.activityLibrary = importedData.activityLibrary;
-              saveLibrary();
+            if (Array.isArray(importedData.favorites)) {
+              state.favorites = importedData.favorites;
+              saveFavorites();
             }
             this.renderRoutinesList();
             showSnackbar('Backup data successfully restored!');
