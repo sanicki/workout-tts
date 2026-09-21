@@ -784,6 +784,7 @@
         <div class="card-title mt-1">
           <span>Activities</span>
           <div class="actions">
+            <button id="btn-from-favorites" class="btn btn-secondary btn-sm">+ Favorites</button>
             <button id="btn-add-activity" class="btn btn-secondary btn-sm">+ Add Activity</button>
           </div>
         </div>
@@ -995,9 +996,28 @@
         </div>
       </div>
 
+      <label class="checkbox-group mt-1">
+        <input type="checkbox" id="chk-save-to-favorites">
+        <span>Also save to Favorites (for reuse in other routines)</span>
+      </label>
+
       <div class="row mt-1">
         <button id="btn-cancel-activity" class="btn btn-secondary">Cancel</button>
         <button id="btn-save-activity" class="btn btn-primary">Save Activity</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom sheet for picking a Favorite Activity to reuse in the current routine -->
+  <div id="favorites-picker-modal" class="sheet-backdrop" hidden>
+    <div class="sheet">
+      <h3>Favorite Activities</h3>
+      <p style="font-size:0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Tap a favorite to add a copy to this routine.</p>
+      <div id="favorites-picker-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Favorite items populated via JS -->
+      </div>
+      <div class="row mt-1">
+        <button id="btn-cancel-favorites-picker" class="btn btn-secondary">Close</button>
       </div>
     </div>
   </div>
@@ -1008,6 +1028,7 @@
        ========================================================================= */
     const STORAGE_KEY_ROUTINES = 'vrc_routines';
     const STORAGE_KEY_SETTINGS = 'vrc_settings';
+    const STORAGE_KEY_FAVORITES = 'vrc_favorite_activities';
 
     const defaultRoutines = [
       {
@@ -1067,6 +1088,7 @@
     let state = {
       routines: migrateRoutines(JSON.parse(localStorage.getItem(STORAGE_KEY_ROUTINES)) || defaultRoutines),
       settings: Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}')),
+      favorites: JSON.parse(localStorage.getItem(STORAGE_KEY_FAVORITES) || '[]'),
       currentEditingRoutineId: null,
       editingRoutineDraft: null,
       editingActivityId: null
@@ -1187,6 +1209,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
     function saveSettings() {
       localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
+    }
+
+    function saveFavorites() {
+      localStorage.setItem(STORAGE_KEY_FAVORITES, JSON.stringify(state.favorites));
     }
 
     function formatDurationSpeech(seconds) {
@@ -1672,6 +1698,17 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       'rest': 'REST'
     };
 
+    // Shared by the routine editor's activity list and the favorites picker,
+    // since both render the same per-type summary line.
+    function getActivityDetailsText(activity) {
+      if (activity.type === 'reps') {
+        return `${activity.reps} reps @ ${activity.pace}s/rep`;
+      } else if (activity.type === 'instructions') {
+        return `Duration: ${activity.duration}s | Has Instructions`;
+      }
+      return `Duration: ${activity.duration}s`;
+    }
+
     /* =========================================================================
        4.5. SNACKBAR + DIALOG (replacing native alert()/confirm())
        ========================================================================= */
@@ -1925,6 +1962,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       repsFields: document.getElementById('reps-fields'),
       durationFields: document.getElementById('duration-fields'),
       instructionsFields: document.getElementById('instructions-fields'),
+      saveToFavoritesCheckbox: document.getElementById('chk-save-to-favorites'),
+      favoritesPickerModal: document.getElementById('favorites-picker-modal'),
+      favoritesPickerList: document.getElementById('favorites-picker-list'),
 
       init() {
         this.bindEvents();
@@ -2000,6 +2040,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         document.getElementById('btn-add-activity').addEventListener('click', () => this.openActivityModal());
         document.getElementById('btn-cancel-activity').addEventListener('click', () => this.handleActivityModalBack());
         document.getElementById('btn-save-activity').addEventListener('click', () => this.saveActivity());
+
+        // Favorite Activities Picker
+        document.getElementById('btn-from-favorites').addEventListener('click', () => this.showFavoritesPicker());
+        document.getElementById('btn-cancel-favorites-picker').addEventListener('click', () => this.closeFavoritesPicker());
 
         this.activityTypeSelect.addEventListener('change', (e) => {
           this.toggleActivityModalFields(e.target.value);
@@ -2299,15 +2343,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           const item = document.createElement('div');
           item.className = 'item-card';
 
-          let details = '';
-          if (activity.type === 'reps') {
-            details = `${activity.reps} reps @ ${activity.pace}s/rep`;
-          } else if (activity.type === 'instructions') {
-            details = `Duration: ${activity.duration}s | Has Instructions`;
-          } else {
-            details = `Duration: ${activity.duration}s`;
-          }
-
+          const details = getActivityDetailsText(activity);
           const badgeLabel = ACTIVITY_TYPE_BADGE_LABELS[activity.type] || activity.type.toUpperCase();
 
           item.innerHTML = `
@@ -2364,6 +2400,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.activityInstructionsInput.value = '';
         }
 
+        this.saveToFavoritesCheckbox.checked = false;
         this.toggleActivityModalFields(type);
         this.activityModalOriginal = this.readActivityFormValues();
         openSheet(this.activityModal);
@@ -2490,6 +2527,16 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
         }
 
+        if (this.saveToFavoritesCheckbox.checked) {
+          // Independent copy, not a live reference - editing or deleting the
+          // favorite later must not retroactively affect this routine's
+          // activity (same mental model as "Duplicate" elsewhere in the app).
+          const favoriteCopy = JSON.parse(JSON.stringify(activityData));
+          favoriteCopy.id = 'fav-' + Date.now();
+          state.favorites.push(favoriteCopy);
+          saveFavorites();
+        }
+
         if (state.editingActivityId) {
           const idx = routine.activities.findIndex(a => a.id === state.editingActivityId);
           if (idx !== -1) routine.activities[idx] = activityData;
@@ -2507,6 +2554,81 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         routine.activities = routine.activities.filter(a => a.id !== activityId);
         this.renderActivitiesList(routine);
+      },
+
+      // A picker opened from within the routine editor (not a bottom-nav
+      // destination - it's a content picker for an in-progress workflow,
+      // same as Android's own picker pattern), listing activities saved via
+      // the "Save to Favorites" checkbox in the Configure Activity sheet.
+      showFavoritesPicker() {
+        this.renderFavoritesPickerList();
+        openSheet(this.favoritesPickerModal);
+        pushBackGuard(() => this.closeFavoritesPicker());
+      },
+
+      closeFavoritesPicker() {
+        closeSheet(this.favoritesPickerModal);
+        closeTopBackGuard();
+      },
+
+      renderFavoritesPickerList() {
+        this.favoritesPickerList.innerHTML = '';
+
+        if (state.favorites.length === 0) {
+          this.favoritesPickerList.innerHTML = `<p style="font-size:0.85rem; color: var(--text-muted); text-align:center;">No favorite activities yet. Use "Save to Favorites" when configuring an activity.</p>`;
+          return;
+        }
+
+        state.favorites.forEach((favItem) => {
+          const item = document.createElement('div');
+          item.className = 'item-card';
+
+          const details = getActivityDetailsText(favItem);
+          const badgeLabel = ACTIVITY_TYPE_BADGE_LABELS[favItem.type] || favItem.type.toUpperCase();
+
+          item.innerHTML = `
+            <div class="item-content" style="cursor: pointer;" onclick="ui.addFromFavorites('${favItem.id}')">
+              <div class="item-title">${escapeHTML(favItem.title)} <span class="type-badge">(${badgeLabel})</span></div>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">${details}</div>
+            </div>
+            <button class="btn btn-icon btn-icon-danger btn-sm" onclick="event.stopPropagation(); ui.deleteFromFavorites('${favItem.id}')" title="Remove from Favorites">${DELETE_ICON_SVG}</button>
+          `;
+
+          this.favoritesPickerList.appendChild(item);
+        });
+      },
+
+      // Adds an independent copy into the currently-edited routine - not a
+      // live reference to the favorite, matching the app's existing
+      // "Duplicate" mental model.
+      addFromFavorites(favoriteId) {
+        const routine = state.editingRoutineDraft;
+        if (!routine) return;
+
+        const favItem = state.favorites.find(a => a.id === favoriteId);
+        if (!favItem) return;
+
+        const copy = JSON.parse(JSON.stringify(favItem));
+        copy.id = 'activity-' + Date.now();
+
+        routine.activities.push(copy);
+        this.renderActivitiesList(routine);
+        this.closeFavoritesPicker();
+        showSnackbar(`Added "${favItem.title}" to routine.`);
+      },
+
+      async deleteFromFavorites(favoriteId) {
+        const confirmed = await showConfirmDialog({
+          title: 'Remove from Favorites?',
+          message: 'Remove this activity from your Favorites? This won\'t affect routines that already use it.',
+          confirmLabel: 'Remove',
+          danger: true
+        });
+        if (confirmed) {
+          state.favorites = state.favorites.filter(a => a.id !== favoriteId);
+          saveFavorites();
+          this.renderFavoritesPickerList();
+        }
       },
 
       startRoutine(id) {
@@ -2581,6 +2703,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               state.settings = Object.assign({}, defaultSettings, importedData.settings);
               saveSettings();
               this.loadSettingsUI();
+            }
+            if (Array.isArray(importedData.favorites)) {
+              state.favorites = importedData.favorites;
+              saveFavorites();
             }
             this.renderRoutinesList();
             showSnackbar('Backup data successfully restored!');
