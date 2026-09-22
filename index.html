@@ -1132,6 +1132,12 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      /* form-group is a column flex container, whose default
+         align-items: stretch would otherwise stretch this to the full
+         row width - with stepper-value's flex: 1 then spreading the
+         buttons apart to fill all that empty space. Sizing to content
+         keeps it a compact, tightly-grouped "- 1 +" cluster instead. */
+      align-self: flex-start;
     }
     .stepper-btn {
       width: 36px;
@@ -1155,9 +1161,7 @@
        the base text-field rule (full-width, bordered, padded) instead of
        silently losing to it. */
     input.stepper-value {
-      flex: 1;
-      width: auto;
-      min-width: 0;
+      width: 1.5rem;
       text-align: center;
       font-size: 1rem;
       font-weight: 600;
