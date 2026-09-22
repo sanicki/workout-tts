@@ -86,48 +86,60 @@ test.describe('Playback notification: Settings opt-in', () => {
   });
 });
 
-test.describe('Playback notification: real showNotification()', () => {
-  test('shows the correct title, body, actions, and closes cleanly - no stubbing', async ({ page }) => {
+test.describe('Playback notification: showNotification()/close() call shape', () => {
+  // Exercises the real playbackNotification.update()/close() against the
+  // real ServiceWorkerRegistration, but stubs showNotification/
+  // getNotifications themselves as recording spies rather than reading
+  // real notifications back via getNotifications() - CI runners (e.g.
+  // GitHub Actions' Linux images) commonly have no system notification
+  // service for Chromium's real notification bridge to hand off to, so a
+  // shown notification silently never appears in getNotifications() there
+  // even though permission is genuinely granted and showNotification()
+  // itself resolves without error.
+  test('update() calls showNotification with the right title/body/tag/actions; close() closes matching-tag notifications', async ({ page }) => {
     await resetApp(page);
     await enableNotifications(page);
 
-    const shown = await page.evaluate(async () => {
-      await playbackNotification.update('Push-ups', 'Rep 1 of 10', false);
+    const result = await page.evaluate(async () => {
       const reg = await navigator.serviceWorker.ready;
-      const notifications = await reg.getNotifications({ tag: 'workout-tts-playback' });
-      return notifications.map(n => ({
-        title: n.title,
-        body: n.body,
-        silent: n.silent,
-        actions: n.actions.map(a => ({ action: a.action, title: a.title }))
-      }));
+      let showCall = null;
+      reg.showNotification = (title, options) => { showCall = { title, options }; return Promise.resolve(); };
+
+      await playbackNotification.update('Push-ups', 'Rep 1 of 10', false);
+
+      let getNotificationsTagArg = null;
+      let closedCount = 0;
+      const fakeNotification = { close: () => { closedCount++; } };
+      reg.getNotifications = (opts) => { getNotificationsTagArg = opts && opts.tag; return Promise.resolve([fakeNotification]); };
+
+      await playbackNotification.close();
+
+      return { showCall, getNotificationsTagArg, closedCount };
     });
-    expect(shown).toEqual([{
-      title: 'Push-ups',
+
+    expect(result.showCall.title).toBe('Push-ups');
+    expect(result.showCall.options).toMatchObject({
       body: 'Rep 1 of 10',
+      tag: 'workout-tts-playback',
       silent: true,
       actions: [{ action: 'pause', title: 'Pause' }, { action: 'skip', title: 'Skip' }]
-    }]);
-
-    await page.evaluate(() => playbackNotification.close());
-    const afterClose = await page.evaluate(async () => {
-      const reg = await navigator.serviceWorker.ready;
-      return (await reg.getNotifications({ tag: 'workout-tts-playback' })).length;
     });
-    expect(afterClose).toBe(0);
+    expect(result.getNotificationsTagArg).toBe('workout-tts-playback');
+    expect(result.closedCount).toBe(1);
   });
 
   test('a paused Pause action shows as "Resume"', async ({ page }) => {
     await resetApp(page);
     await enableNotifications(page);
-    await page.evaluate(() => playbackNotification.update('Push-ups', 'Paused - Rep 1 of 10', true));
-    const pauseAction = await page.evaluate(async () => {
+
+    const options = await page.evaluate(async () => {
       const reg = await navigator.serviceWorker.ready;
-      const notifications = await reg.getNotifications({ tag: 'workout-tts-playback' });
-      return notifications[0].actions.find(a => a.action === 'pause').title;
+      let captured = null;
+      reg.showNotification = (title, opts) => { captured = opts; return Promise.resolve(); };
+      await playbackNotification.update('Push-ups', 'Paused - Rep 1 of 10', true);
+      return captured;
     });
-    expect(pauseAction).toBe('Resume');
-    await page.evaluate(() => playbackNotification.close());
+    expect(options.actions.find(a => a.action === 'pause').title).toBe('Resume');
   });
 });
 
