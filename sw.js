@@ -33,6 +33,23 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// The playback notification's Skip/Pause actions run here, not in the
+// page, since the SW is what owns the notification. Relays the action to
+// any open page via postMessage, where executionEngine actually lives -
+// this event handler has no access to it directly. Tapping the
+// notification body itself (event.action === '') is deliberately a no-op:
+// the notification is meant to be usable without ever opening the app.
+self.addEventListener('notificationclick', (event) => {
+  if (!event.action) return;
+
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      clientList.forEach((client) => client.postMessage({ type: 'workout-tts-notification-action', action: event.action }));
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
