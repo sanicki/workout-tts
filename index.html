@@ -1114,6 +1114,13 @@
       color: var(--text-muted);
     }
     .time-picker-captions .time-picker-sep { visibility: hidden; }
+
+    /* Rest Between Sets doesn't mean anything at Sets=1 - dims the whole
+       field (label, picker, captions) rather than just disabling the
+       <select>s, since a disabled select's default browser styling alone
+       isn't always a clearly visible "not applicable right now" signal. */
+    .form-group.field-disabled { opacity: 0.5; }
+    .form-group.field-disabled select:disabled { cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -1407,7 +1414,7 @@
               <input type="number" inputmode="numeric" id="activity-sets-input" min="1" max="5" value="1">
               <p id="activity-sets-error" class="field-error" hidden></p>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="rest-between-sets-group">
               <label id="activity-rest-between-sets-label">Rest Between Sets</label>
               <div class="time-picker" role="group" aria-labelledby="activity-rest-between-sets-label">
                 <select id="activity-rest-between-sets-minutes" aria-label="Rest between sets minutes"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>
@@ -2695,6 +2702,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       activitySetsInput: document.getElementById('activity-sets-input'),
       activityRestBetweenSetsMinutes: document.getElementById('activity-rest-between-sets-minutes'),
       activityRestBetweenSetsSeconds: document.getElementById('activity-rest-between-sets-seconds'),
+      restBetweenSetsGroup: document.getElementById('rest-between-sets-group'),
       activityDurationHours: document.getElementById('activity-duration-hours'),
       activityDurationMinutesLong: document.getElementById('activity-duration-minutes-long'),
       activityDurationSecondsLong: document.getElementById('activity-duration-seconds-long'),
@@ -2813,6 +2821,11 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.activityDurationHours, this.activityDurationMinutesLong, this.activityDurationSecondsLong,
           this.activityDurationMinutesShort, this.activityDurationSecondsShort
         ];
+
+        // Rest Between Sets only means something once there's more than
+        // one set - keep its disabled/zeroed state in sync as Sets is
+        // edited, before the favorite-match listener below reads it.
+        this.activitySetsInput.addEventListener('input', () => this.refreshRestBetweenSetsAvailability());
 
         [this.activityTitleInput, this.activityRepsInput, this.activityPaceInput, this.activitySetsInput, this.activityInstructionsInput].forEach((input) => {
           input.addEventListener('input', () => this.refreshFavoriteMatchState());
@@ -3233,6 +3246,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
 
         this.toggleActivityModalFields(type);
+        this.refreshRestBetweenSetsAvailability();
 
         [
           [this.activityTitleInput, 'activity-title-error'],
@@ -3378,6 +3392,18 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         const total = Math.min(300, Math.max(0, parseInt(totalSeconds, 10) || 0));
         this.activityRestBetweenSetsMinutes.value = Math.floor(total / 60);
         this.activityRestBetweenSetsSeconds.value = total % 60;
+      },
+
+      // Rest Between Sets is meaningless at Sets=1 - disable it (and zero
+      // it out, so a value left over from a higher Sets count can't be
+      // silently saved and silently ignored by the execution engine).
+      refreshRestBetweenSetsAvailability() {
+        const sets = parseInt(this.activitySetsInput.value, 10) || 1;
+        const disabled = sets <= 1;
+        this.activityRestBetweenSetsMinutes.disabled = disabled;
+        this.activityRestBetweenSetsSeconds.disabled = disabled;
+        this.restBetweenSetsGroup.classList.toggle('field-disabled', disabled);
+        if (disabled) this.setRestBetweenSetsSeconds(0);
       },
 
       toggleActivityModalFields(type) {

@@ -62,6 +62,37 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     expect(await page.inputValue('#activity-rest-between-sets-seconds')).toBe('0');
   });
 
+  test('Rest Between Sets is disabled and zeroed at Sets=1, and re-enables above it', async ({ page }) => {
+    // Sets=1 by default: Rest Between Sets should already be disabled and
+    // visibly dimmed - there's no "between sets" with only one set.
+    await expect(page.locator('#activity-rest-between-sets-minutes')).toBeDisabled();
+    await expect(page.locator('#activity-rest-between-sets-seconds')).toBeDisabled();
+    await expect(page.locator('#rest-between-sets-group')).toHaveClass(/field-disabled/);
+
+    // Raising Sets re-enables it.
+    await page.fill('#activity-sets-input', '3');
+    await expect(page.locator('#activity-rest-between-sets-minutes')).toBeEnabled();
+    await expect(page.locator('#activity-rest-between-sets-seconds')).toBeEnabled();
+    await expect(page.locator('#rest-between-sets-group')).not.toHaveClass(/field-disabled/);
+
+    await page.selectOption('#activity-rest-between-sets-minutes', '1');
+    await page.selectOption('#activity-rest-between-sets-seconds', '15');
+
+    // Dropping back to Sets=1 disables it again AND zeroes out whatever
+    // was selected, so a leftover non-zero value can't be silently saved
+    // and silently ignored by the execution engine (the reported bug).
+    await page.fill('#activity-sets-input', '1');
+    await expect(page.locator('#activity-rest-between-sets-minutes')).toBeDisabled();
+    expect(await page.inputValue('#activity-rest-between-sets-minutes')).toBe('0');
+    expect(await page.inputValue('#activity-rest-between-sets-seconds')).toBe('0');
+
+    await page.fill('#activity-title-input', 'Single Set Activity');
+    await page.click('#btn-save-activity');
+    await page.waitForTimeout(300);
+    const saved = await page.evaluate(() => state.editingRoutineDraft.activities.find(a => a.title === 'Single Set Activity'));
+    expect(saved.restBetweenSets).toBe(0);
+  });
+
   test('Sets must be between 1 and 5', async ({ page }) => {
     await page.fill('#activity-title-input', 'Bounds Test');
     await page.fill('#activity-sets-input', '6');
@@ -82,6 +113,7 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
 
   test('Rest Between Sets must be between 0 and 5 minutes', async ({ page }) => {
     await page.fill('#activity-title-input', 'Rest Bounds Test');
+    await page.fill('#activity-sets-input', '3'); // Rest Between Sets is disabled at Sets=1
     await page.selectOption('#activity-rest-between-sets-minutes', '5');
     await page.selectOption('#activity-rest-between-sets-seconds', '1');
     await page.click('#btn-save-activity');
