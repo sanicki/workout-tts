@@ -1263,6 +1263,13 @@
           <span class="switch-track"><span class="switch-thumb"></span></span>
           <span class="switch-label">Haptic Feedback (Vibration)</span>
         </label>
+
+        <label class="switch">
+          <input type="checkbox" id="chk-playback-notifications">
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span class="switch-label">Show Notification While Playing</span>
+        </label>
+        <p style="font-size:0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Shows the current activity with Skip/Pause controls while a routine plays - mainly useful if you have a paired WearOS watch. Tapping the notification itself does nothing; it won't open the app.</p>
       </div>
 
       <div class="card">
@@ -1591,6 +1598,7 @@
       volume: 1.0,
       ticks: true,
       haptics: true,
+      playbackNotifications: false,
       countdownThreshold: 3,
       timeRemainingThreshold: 50,
       remainingTimeInterval: 15
@@ -1958,7 +1966,11 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       }
 
       playTone(freq, type, duration) {
-        if (!state.settings.ticks) return;
+        // WebAudio keeps playing when the page is backgrounded, unlike
+        // speechSynthesis (which the OS/browser force-suspends - not
+        // something a web app can override). Muting tones too avoids a
+        // lone chime/tick with no voice narration to say what it was for.
+        if (!state.settings.ticks || document.hidden) return;
         try {
           const ctx = this.getAudioContext();
           if (!ctx) return;
@@ -1992,6 +2004,47 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     }
 
     const audioEngine = new AudioEngine();
+
+    // The "Now Playing"-style notification shown while a routine runs -
+    // mainly for surfacing Skip/Pause on a paired WearOS watch, since a
+    // phone user already has the in-app player. Fixed tag so every update
+    // replaces the same notification in place rather than stacking new
+    // ones; renotify defaults to false, so replacing it doesn't re-alert
+    // (no sound/vibration) on every activity/phase change.
+    const PLAYBACK_NOTIFICATION_TAG = 'workout-tts-playback';
+
+    const playbackNotification = {
+      async update(title, body, isPaused) {
+        if (!state.settings.playbackNotifications) return;
+        if (!('serviceWorker' in navigator) || !('Notification' in window) || Notification.permission !== 'granted') return;
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification(title, {
+            body,
+            tag: PLAYBACK_NOTIFICATION_TAG,
+            icon: './icons/icon-192.png',
+            silent: true,
+            actions: [
+              { action: 'pause', title: isPaused ? 'Resume' : 'Pause' },
+              { action: 'skip', title: 'Skip' }
+            ]
+          });
+        } catch (e) {
+          console.error('Playback notification error:', e);
+        }
+      },
+
+      async close() {
+        if (!('serviceWorker' in navigator)) return;
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          const notifications = await reg.getNotifications({ tag: PLAYBACK_NOTIFICATION_TAG });
+          notifications.forEach((n) => n.close());
+        } catch (e) {
+          console.error('Playback notification close error:', e);
+        }
+      }
+    };
 
     function triggerHaptic(pattern = 50) {
       if (state.settings.haptics && navigator.vibrate) {
@@ -2086,6 +2139,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.accTime = activity.pace;
 
         ui.updatePlayerStatus('WORK', 'status-rep', activity.title, this.currentRep, this.repSubText(activity), this.getNextPreview());
+        this.refreshPlaybackNotification();
         audioEngine.playChime();
         triggerHaptic([100, 50, 100]);
 
@@ -2121,6 +2175,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.accTime = activity.duration;
 
         ui.updatePlayerStatus('WORK', 'status-rep', activity.title, formatDisplayTime(this.accTime), 'Work Period', this.getNextPreview());
+        this.refreshPlaybackNotification();
         audioEngine.playChime();
         triggerHaptic([100, 50, 100]);
 
@@ -2140,6 +2195,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.subState = 'REST';
         this.accTime = activity.duration;
         ui.updatePlayerStatus('REST', 'status-rest', activity.title, formatDisplayTime(this.accTime), activity.type === 'instructions' ? 'Get Ready' : 'Rest', this.getNextPreview());
+        this.refreshPlaybackNotification();
 
         const phrase = activity.type === 'instructions' && activity.instructions.trim()
           ? activity.instructions.trim()
@@ -2160,6 +2216,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.subState = 'SET_REST';
         this.accTime = activity.restBetweenSets;
         ui.updatePlayerStatus('REST', 'status-rest', activity.title, formatDisplayTime(this.accTime), 'Rest Between Sets', this.getNextPreview());
+        this.refreshPlaybackNotification();
 
         audioEngine.speak(`${activity.title}. ${formatDurationSpeech(activity.restBetweenSets)} rest between sets.`, true);
         this.startLoop();
@@ -2204,6 +2261,27 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           return `Next: ${nextActivity.title} (${nextActivity.type === 'reps' ? nextActivity.reps + ' reps' : nextActivity.duration + 's'})`;
         }
         return 'Next: Workout Complete';
+      }
+
+      // Same abbreviated status shown in-app, reused for the playback
+      // notification so the two never drift out of sync with each other.
+      getNotificationBody() {
+        const activity = this.routine.activities[this.activityIndex];
+        if (!activity) return '';
+        if (this.subState === 'SET_REST') return 'Rest Between Sets';
+        if (this.subState === 'REST') return activity.type === 'instructions' ? 'Get Ready' : 'Rest';
+        if (activity.type === 'exercise-timer') return 'Work Period';
+        return this.repSubText(activity);
+      }
+
+      // Called on phase transitions only (a new activity, set, or rest -
+      // never per-tick/per-rep) and on pause/resume, per how frequently a
+      // system notification should reasonably be rewritten.
+      refreshPlaybackNotification() {
+        const activity = this.routine.activities[this.activityIndex];
+        if (!activity) return;
+        const body = this.getNotificationBody();
+        playbackNotification.update(activity.title, this.isPaused ? `Paused - ${body}` : body, this.isPaused);
       }
 
       startLoop() {
@@ -2320,6 +2398,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.lastTime = performance.now();
           ui.setPauseButtonText('Pause');
         }
+        this.refreshPlaybackNotification();
       }
 
       skip() {
@@ -2343,12 +2422,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.stopLoop();
         audioEngine.stopSpeech();
         this.releaseWakeLock();
+        playbackNotification.close();
         ui.showPlayer(false);
       }
 
       finishRoutine() {
         this.stopLoop();
         this.releaseWakeLock();
+        playbackNotification.close();
         audioEngine.speak('Workout completed! Excellent job!', true);
         ui.updatePlayerStatus('FINISHED', 'status-rest', 'Complete!', '✓', 'All done', '');
         setTimeout(() => {
@@ -2786,6 +2867,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       registerServiceWorker() {
         if (!('serviceWorker' in navigator)) return;
 
+        // The playback notification's Skip/Pause actions are handled by
+        // the SW (which owns the notification) and relayed here, since
+        // executionEngine only exists on this side.
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type !== 'workout-tts-notification-action') return;
+          if (event.data.action === 'skip') executionEngine.skip();
+          else if (event.data.action === 'pause') executionEngine.pause();
+        });
+
         window.addEventListener('load', () => {
           // A worker already controlling this load means there's a previous
           // version running that a later update should replace. On a fresh
@@ -2951,6 +3041,35 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           saveSettings();
         });
 
+        // Only requests Notification permission when actually turning this
+        // on - opt-in, not an unsolicited prompt from starting a routine.
+        // Reverts the switch (without persisting true) if permission isn't
+        // actually granted, since the feature wouldn't work anyway.
+        document.getElementById('chk-playback-notifications').addEventListener('change', async (e) => {
+          const checkbox = e.target;
+          if (!checkbox.checked) {
+            state.settings.playbackNotifications = false;
+            saveSettings();
+            return;
+          }
+
+          if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+            checkbox.checked = false;
+            showSnackbar('Notifications are not supported in this browser.');
+            return;
+          }
+
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            checkbox.checked = false;
+            showSnackbar('Notification permission was not granted.');
+            return;
+          }
+
+          state.settings.playbackNotifications = true;
+          saveSettings();
+        });
+
         this.bindDiscreteSlider('countdown-threshold-range', 'countdown-threshold-val', 'countdownThreshold', COUNTDOWN_THRESHOLD_OPTIONS);
         this.bindDiscreteSlider('time-remaining-range', 'time-remaining-val', 'timeRemainingThreshold', TIME_REMAINING_THRESHOLD_OPTIONS);
         this.bindDiscreteSlider('remaining-interval-range', 'remaining-interval-val', 'remainingTimeInterval', REMAINING_TIME_INTERVAL_OPTIONS);
@@ -3023,6 +3142,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         document.getElementById('vol-val').textContent = Math.round(state.settings.volume * 100);
         document.getElementById('chk-ticks').checked = state.settings.ticks;
         document.getElementById('chk-haptics').checked = state.settings.haptics;
+        // Reflects reality if permission was revoked at the OS level after
+        // being turned on in-app, rather than showing "on" for a feature
+        // that can no longer actually function.
+        if (state.settings.playbackNotifications && !(('Notification' in window) && Notification.permission === 'granted')) {
+          state.settings.playbackNotifications = false;
+          saveSettings();
+        }
+        document.getElementById('chk-playback-notifications').checked = state.settings.playbackNotifications;
         this.loadDiscreteSlider('countdown-threshold-range', 'countdown-threshold-val', 'countdownThreshold', COUNTDOWN_THRESHOLD_OPTIONS);
         this.loadDiscreteSlider('time-remaining-range', 'time-remaining-val', 'timeRemainingThreshold', TIME_REMAINING_THRESHOLD_OPTIONS);
         this.loadDiscreteSlider('remaining-interval-range', 'remaining-interval-val', 'remainingTimeInterval', REMAINING_TIME_INTERVAL_OPTIONS);
