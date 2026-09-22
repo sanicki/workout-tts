@@ -1838,6 +1838,11 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.timer = null;
         this.isPaused = false;
         this.wakeLock = null;
+        // Bumped on every stop()/loadActivity() so a speech onend/onerror
+        // callback that outlives its phase (e.g. fired by stopSpeech()'s
+        // cancel() after Stop was pressed) can tell it's stale and no-op
+        // instead of restarting the tick loop.
+        this.generation = 0;
 
         // Time tracking
         this.lastTime = 0;
@@ -1872,6 +1877,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       }
 
       loadActivity() {
+        this.generation++;
         if (this.activityIndex >= this.routine.activities.length) {
           this.finishRoutine();
           return;
@@ -1901,8 +1907,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         audioEngine.playChime();
         triggerHaptic([100, 50, 100]);
 
+        const gen = this.generation;
         audioEngine.speak(`${activity.title}. Begin.`, true, () => {
-          if (this.isPaused || this.subState !== 'WORK') return;
+          if (gen !== this.generation || this.isPaused || this.subState !== 'WORK') return;
           audioEngine.speak('1', false);
           audioEngine.playTick();
           triggerHaptic(60);
@@ -1920,8 +1927,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         audioEngine.playChime();
         triggerHaptic([100, 50, 100]);
 
+        const gen = this.generation;
         audioEngine.speak(`${activity.title}. ${formatDurationSpeech(activity.duration)}. Begin.`, true, () => {
-          if (this.isPaused || this.subState !== 'WORK') return;
+          if (gen !== this.generation || this.isPaused || this.subState !== 'WORK') return;
           audioEngine.playTick();
           triggerHaptic(60);
           this.lastTime = performance.now();
@@ -2071,6 +2079,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       }
 
       stop() {
+        this.generation++;
         this.stopLoop();
         audioEngine.stopSpeech();
         this.releaseWakeLock();
