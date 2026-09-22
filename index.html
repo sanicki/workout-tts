@@ -1454,7 +1454,7 @@
             </div>
             <div class="form-group">
               <label for="activity-pace-input">Pace / Rep (s)</label>
-              <input type="number" inputmode="decimal" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
+              <input type="number" inputmode="decimal" id="activity-pace-input" min="0.5" max="20" step="0.1" value="3.0">
               <p id="activity-pace-error" class="field-error" hidden></p>
             </div>
           </div>
@@ -3559,8 +3559,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             return;
           }
           clearFieldError(this.activityRepsInput, 'activity-reps-error');
-          if (pace <= 0) {
-            setFieldError(this.activityPaceInput, 'activity-pace-error', 'Pace must be greater than 0 seconds.');
+          if (!(pace >= 0.5 && pace <= 20)) {
+            setFieldError(this.activityPaceInput, 'activity-pace-error', 'Pace must be between 0.5 and 20 seconds.');
             return;
           }
           clearFieldError(this.activityPaceInput, 'activity-pace-error');
@@ -3576,7 +3576,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           clearFieldError(null, 'activity-rest-between-sets-error');
 
           activityData.reps = reps;
-          activityData.pace = Math.max(0.5, pace || 1.0);
+          activityData.pace = pace;
           activityData.sets = sets;
           activityData.restBetweenSets = restBetweenSets;
         } else {
