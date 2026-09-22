@@ -148,6 +148,19 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     await expect(page.locator('#activity-modal')).toBeHidden();
   });
 
+  test('Pace / Rep must be between 0.5 and 20 seconds', async ({ page }) => {
+    await page.fill('#activity-title-input', 'Pace Bounds Test');
+    await page.fill('#activity-pace-input', '20.1');
+    await page.click('#btn-save-activity');
+    await page.waitForTimeout(200);
+    await expect(page.locator('#activity-pace-error')).toBeVisible();
+
+    await page.fill('#activity-pace-input', '20');
+    await page.click('#btn-save-activity');
+    await page.waitForTimeout(300);
+    await expect(page.locator('#activity-modal')).toBeHidden();
+  });
+
   test('Total Reps accepts up to 500 (raised from the old unvalidated-but-effectively-low bound)', async ({ page }) => {
     await page.fill('#activity-title-input', 'High Reps Test');
     await page.fill('#activity-reps-input', '501');
