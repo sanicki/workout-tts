@@ -11,7 +11,13 @@ async function enableNotifications(page) {
   await page.click('#tab-settings');
   await page.waitForTimeout(200);
   await page.click('#chk-playback-notifications + .switch-track');
-  await page.waitForTimeout(300);
+  // Waits for the actual persisted state rather than a fixed delay - the
+  // toggle click kicks off an async Notification.requestPermission() ->
+  // saveSettings() chain, and a fixed short wait proved too tight on a
+  // slower/colder CI runner, leaving state.settings.playbackNotifications
+  // still false (and playbackNotification.update()'s own "not enabled"
+  // guard silently short-circuiting) by the time a test proceeded.
+  await page.waitForFunction(() => state.settings.playbackNotifications === true);
 }
 
 async function seedRoutineAndReload(page, activities) {
@@ -78,7 +84,12 @@ test.describe('Playback notification: Settings opt-in', () => {
     await page.evaluate(() => {
       Notification.requestPermission = () => Promise.resolve('denied');
     });
-    await enableNotifications(page);
+    // Doesn't reuse enableNotifications() - that helper waits for
+    // playbackNotifications to become true, which never happens on this
+    // (denied) path.
+    await page.click('#tab-settings');
+    await page.waitForTimeout(200);
+    await page.click('#chk-playback-notifications + .switch-track');
     await expect(page.locator('#chk-playback-notifications')).not.toBeChecked();
     const persisted = await page.evaluate(() => state.settings.playbackNotifications);
     expect(persisted).toBe(false);
