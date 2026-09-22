@@ -192,7 +192,7 @@ test.describe('Playback notification: phase-transition content', () => {
 
     let calls = await page.evaluate(() => window.__notifCalls);
     expect(calls).toEqual([
-      { type: 'update', title: 'Squats', body: 'Set 1 of 2: Rep 1 of 1', isPaused: false }
+      { type: 'update', title: 'Squats', body: 'Set 1 of 2: 1 Rep', isPaused: false }
     ]);
 
     // Pause / resume.
@@ -203,9 +203,9 @@ test.describe('Playback notification: phase-transition content', () => {
 
     calls = await page.evaluate(() => window.__notifCalls);
     expect(calls).toEqual([
-      { type: 'update', title: 'Squats', body: 'Set 1 of 2: Rep 1 of 1', isPaused: false },
-      { type: 'update', title: 'Squats', body: 'Paused - Set 1 of 2: Rep 1 of 1', isPaused: true },
-      { type: 'update', title: 'Squats', body: 'Set 1 of 2: Rep 1 of 1', isPaused: false }
+      { type: 'update', title: 'Squats', body: 'Set 1 of 2: 1 Rep', isPaused: false },
+      { type: 'update', title: 'Squats', body: 'Paused - Set 1 of 2: 1 Rep', isPaused: true },
+      { type: 'update', title: 'Squats', body: 'Set 1 of 2: 1 Rep', isPaused: false }
     ]);
 
     // Set 1's only rep completes -> SET_REST.
@@ -217,12 +217,12 @@ test.describe('Playback notification: phase-transition content', () => {
 
     calls = await page.evaluate(() => window.__notifCalls);
     expect(calls).toEqual([
-      { type: 'update', title: 'Squats', body: 'Set 1 of 2: Rep 1 of 1', isPaused: false },
-      { type: 'update', title: 'Squats', body: 'Paused - Set 1 of 2: Rep 1 of 1', isPaused: true },
-      { type: 'update', title: 'Squats', body: 'Set 1 of 2: Rep 1 of 1', isPaused: false },
-      { type: 'update', title: 'Squats', body: 'Rest Between Sets', isPaused: false },
-      { type: 'update', title: 'Squats', body: 'Set 2 of 2: Rep 1 of 1', isPaused: false },
-      { type: 'update', title: 'Cooldown', body: 'Rest', isPaused: false }
+      { type: 'update', title: 'Squats', body: 'Set 1 of 2: 1 Rep', isPaused: false },
+      { type: 'update', title: 'Squats', body: 'Paused - Set 1 of 2: 1 Rep', isPaused: true },
+      { type: 'update', title: 'Squats', body: 'Set 1 of 2: 1 Rep', isPaused: false },
+      { type: 'update', title: 'Squats', body: '5s Rest Between Sets', isPaused: false },
+      { type: 'update', title: 'Squats', body: 'Set 2 of 2: 1 Rep', isPaused: false },
+      { type: 'update', title: 'Cooldown', body: '3s Rest', isPaused: false }
     ]);
   });
 

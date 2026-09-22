@@ -1835,6 +1835,20 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       return `${totalSec}`;
     }
 
+    // "45s" / "1m 30s" - a compact duration for the playback notification,
+    // which (unlike the in-app countdown) only refreshes on phase
+    // transitions and so needs to describe the whole phase rather than a
+    // live-updating number.
+    function formatDurationCompact(seconds) {
+      const totalSec = Math.round(seconds);
+      if (totalSec >= 60) {
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+      }
+      return `${totalSec}s`;
+    }
+
     /* =========================================================================
        2. NAVIGATION GUARD (Back Button / Gesture Interception)
        ========================================================================= */
@@ -2263,15 +2277,24 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         return 'Next: Workout Complete';
       }
 
-      // Same abbreviated status shown in-app, reused for the playback
-      // notification so the two never drift out of sync with each other.
+      // Deliberately its own text rather than reusing the in-app status
+      // (repSubText() etc.): the notification only refreshes on phase
+      // transitions, so a live figure like "Rep 1 of 10" would sit frozen
+      // and misleading for the whole phase. This describes the phase as a
+      // whole instead - its duration, or the rep scheme for the set/activity.
       getNotificationBody() {
         const activity = this.routine.activities[this.activityIndex];
         if (!activity) return '';
-        if (this.subState === 'SET_REST') return 'Rest Between Sets';
-        if (this.subState === 'REST') return activity.type === 'instructions' ? 'Get Ready' : 'Rest';
-        if (activity.type === 'exercise-timer') return 'Work Period';
-        return this.repSubText(activity);
+        if (this.subState === 'SET_REST') return `${formatDurationCompact(activity.restBetweenSets)} Rest Between Sets`;
+        if (this.subState === 'REST') {
+          return activity.type === 'instructions'
+            ? `${formatDurationCompact(activity.duration)} Get Ready`
+            : `${formatDurationCompact(activity.duration)} Rest`;
+        }
+        if (activity.type === 'exercise-timer') return `${formatDurationCompact(activity.duration)} Work`;
+        const sets = activity.sets || 1;
+        const repText = `${activity.reps} ${activity.reps === 1 ? 'Rep' : 'Reps'}`;
+        return sets > 1 ? `Set ${this.currentSet} of ${sets}: ${repText}` : repText;
       }
 
       // Called on phase transitions only (a new activity, set, or rest -
