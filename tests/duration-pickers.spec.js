@@ -1,12 +1,12 @@
 const { test, expect } = require('@playwright/test');
 const { resetApp } = require('./helpers');
 
-// Coverage for the h:mm:ss (Exercise Timer) and mm:ss (Rest / Instructions)
-// duration pickers that replaced the old single "duration in seconds"
-// number input - composing/decomposing correctly, picker visibility per
-// activity type, and safely handling stored data from before these caps
-// existed (Rest/Instructions used to share Exercise Timer's much higher
-// limit).
+// Coverage for the h:mm:ss (Exercise Timer) and mm:ss (Rest) duration
+// pickers that replaced the old single "duration in seconds" number input -
+// composing/decomposing correctly, picker visibility per activity type, and
+// safely handling stored data from before these caps existed (Rest used to
+// share Exercise Timer's much higher limit). Instructions has no duration
+// picker at all - see tests/instructions.spec.js.
 
 async function seedRoutine(page, activities) {
   await page.evaluate((activities) => {
@@ -26,7 +26,7 @@ test.describe('Duration pickers: composition and picker choice per type', () => 
     await page.waitForTimeout(300);
   });
 
-  test('Exercise Timer shows the h:mm:ss picker; Rest and Instructions show mm:ss only', async ({ page }) => {
+  test('Exercise Timer shows the h:mm:ss picker; Rest shows mm:ss; Instructions shows neither', async ({ page }) => {
     await page.selectOption('#activity-type-select', 'exercise-timer');
     await expect(page.locator('#duration-picker-long')).toBeVisible();
     await expect(page.locator('#duration-picker-short')).toBeHidden();
@@ -35,9 +35,10 @@ test.describe('Duration pickers: composition and picker choice per type', () => 
     await expect(page.locator('#duration-picker-long')).toBeHidden();
     await expect(page.locator('#duration-picker-short')).toBeVisible();
 
+    // Instructions has no user-set duration at all - it ends 1s after the
+    // TTS finishes reading the instructions text aloud.
     await page.selectOption('#activity-type-select', 'instructions');
-    await expect(page.locator('#duration-picker-long')).toBeHidden();
-    await expect(page.locator('#duration-picker-short')).toBeVisible();
+    await expect(page.locator('#duration-fields')).toBeHidden();
   });
 
   test('Exercise Timer duration round-trips through save and re-open (1:30:15 = 5415s)', async ({ page }) => {
