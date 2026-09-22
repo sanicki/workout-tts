@@ -1357,7 +1357,7 @@
           <div class="row">
             <div class="form-group">
               <label for="activity-reps-input">Total Reps</label>
-              <input type="number" id="activity-reps-input" min="1" value="10">
+              <input type="number" id="activity-reps-input" min="1" max="500" value="10">
               <p id="activity-reps-error" class="field-error" hidden></p>
             </div>
             <div class="form-group">
@@ -1366,12 +1366,25 @@
               <p id="activity-pace-error" class="field-error" hidden></p>
             </div>
           </div>
+          <div class="row">
+            <div class="form-group">
+              <label for="activity-sets-input">Sets</label>
+              <input type="number" id="activity-sets-input" min="1" max="5" value="1">
+              <p id="activity-sets-error" class="field-error" hidden></p>
+            </div>
+            <div class="form-group">
+              <label for="activity-rest-between-sets-input">Rest Between Sets (s)</label>
+              <input type="number" id="activity-rest-between-sets-input" min="0" max="300" value="0">
+              <p id="activity-rest-between-sets-error" class="field-error" hidden></p>
+            </div>
+          </div>
         </div>
 
         <div id="duration-fields" class="hidden">
           <div class="form-group">
             <label for="activity-duration-input" id="activity-duration-label">Duration (seconds)</label>
-            <input type="number" id="activity-duration-input" min="1" value="60">
+            <input type="number" id="activity-duration-input" min="1" max="14400" value="60">
+            <p id="activity-duration-error" class="field-error" hidden></p>
           </div>
         </div>
 
@@ -1484,7 +1497,7 @@
     let state = {
       routines: migrateRoutines(JSON.parse(localStorage.getItem(STORAGE_KEY_ROUTINES)) || defaultRoutines),
       settings: Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}')),
-      favorites: JSON.parse(localStorage.getItem(STORAGE_KEY_FAVORITES) || '[]'),
+      favorites: migrateFavorites(JSON.parse(localStorage.getItem(STORAGE_KEY_FAVORITES) || '[]')),
       currentEditingRoutineId: null,
       editingRoutineDraft: null,
       editingActivityId: null
@@ -1512,20 +1525,22 @@ A routine is a sequence of "activities". There are four activity types:
      * "Bodyweight squats: stand with feet hip-width apart, engage your core for balance"
      * "Plank hold: get into a forearm plank, elbows under shoulders, body in a straight line"
 
-2. **Reps Counter** - a rep-based exercise the app counts aloud rep by rep.
-   - reps: number of repetitions
+2. **Reps Counter** - a rep-based exercise the app counts aloud rep by rep. For an exercise performed across multiple sets, use ONE Reps Counter activity with sets/restBetweenSets below - never create a separate activity per set.
+   - reps: number of repetitions per set
    - pace: estimated seconds per rep, including form (e.g. 2.0-3.5)
+   - sets: number of sets (1-5). Only include this field when the video states multiple sets (e.g. "3 sets of 12 squats"); omit it otherwise.
+   - restBetweenSets: seconds of rest between sets (0-300), only meaningful when sets > 1 - e.g. "45s rest between sets". Omit unless sets is also present.
 
 3. **Exercise Timer** - a duration-based exercise (e.g. a plank hold, wall sit, or timed cardio burst) the app counts down continuously rather than rep by rep.
    - duration: total seconds for the exercise
 
-4. **Rest** - a silent recovery break between rounds or circuits, with no specific next exercise to describe (use Instructions instead whenever there IS a specific next exercise).
+4. **Rest** - a silent recovery break between rounds, circuits, or different exercises, with no specific next exercise to describe (use Instructions instead whenever there IS a specific next exercise). Do NOT use Rest for the pause between sets of the SAME exercise - that belongs in that Reps Counter's restBetweenSets field instead.
    - duration: seconds to rest (typically 30-90s depending on intensity)
 
 SPECIFIC REQUIREMENTS:
 
-1. Every Reps Counter or Exercise Timer activity must be immediately preceded by an Instructions activity describing it - no exceptions, including the first exercise in the routine.
-2. Use Rest only for a longer break between rounds/circuits where nothing exercise-specific needs to be said.
+1. Every Reps Counter or Exercise Timer activity must be immediately preceded by an Instructions activity describing it - no exceptions, including the first exercise in the routine. This is once per exercise, not once per set.
+2. Use Rest only for a longer break between rounds/circuits/exercises where nothing exercise-specific needs to be said.
 3. **Routine Metadata**:
    - Name: [Descriptive routine name from the video]
    - Description: [Brief description of the workout type]
@@ -1548,8 +1563,10 @@ SPECIFIC REQUIREMENTS:
       "id": "activity-[number]",
       "type": "reps",
       "title": "[Exercise Name]",
-      "reps": [number],
-      "pace": [seconds per rep as decimal]
+      "reps": [number per set],
+      "pace": [seconds per rep as decimal],
+      "sets": [number of sets, 1-5 - omit if only 1],
+      "restBetweenSets": [seconds rest between sets, 0-300 - omit if sets is omitted]
     },
     {
       "id": "activity-[number]",
@@ -1582,26 +1599,50 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     // so it's safe to run on every load/import path rather than tracking
     // which data has and hasn't been upgraded yet.
     function migrateRoutine(routine) {
-      if (!routine || !Array.isArray(routine.blocks)) return routine;
+      if (!routine) return routine;
 
-      routine.activities = routine.blocks.map(block => {
-        if (block.type === 'rep') {
-          return block.reps === 1
-            ? { id: block.id, type: 'exercise-timer', title: block.title, duration: block.pace }
-            : { id: block.id, type: 'reps', title: block.title, reps: block.reps, pace: block.pace };
-        }
-        // Old 'rest' type: instructions populated -> 'instructions', otherwise plain 'rest'.
-        return (block.instructions && block.instructions.trim())
-          ? { id: block.id, type: 'instructions', title: block.title, duration: block.duration, instructions: block.instructions.trim() }
-          : { id: block.id, type: 'rest', title: block.title, duration: block.duration };
-      });
-      delete routine.blocks;
+      if (Array.isArray(routine.blocks)) {
+        routine.activities = routine.blocks.map(block => {
+          if (block.type === 'rep') {
+            return block.reps === 1
+              ? { id: block.id, type: 'exercise-timer', title: block.title, duration: block.pace }
+              : { id: block.id, type: 'reps', title: block.title, reps: block.reps, pace: block.pace };
+          }
+          // Old 'rest' type: instructions populated -> 'instructions', otherwise plain 'rest'.
+          return (block.instructions && block.instructions.trim())
+            ? { id: block.id, type: 'instructions', title: block.title, duration: block.duration, instructions: block.instructions.trim() }
+            : { id: block.id, type: 'rest', title: block.title, duration: block.duration };
+        });
+        delete routine.blocks;
+      }
+
+      if (Array.isArray(routine.activities)) {
+        routine.activities.forEach(backfillRepsSetDefaults);
+      }
+
       return routine;
     }
 
     function migrateRoutines(routines) {
       if (Array.isArray(routines)) routines.forEach(migrateRoutine);
       return routines;
+    }
+
+    // Sets/restBetweenSets are new fields on 'reps' activities - back-fill
+    // defaults (1 set, no rest between sets) onto data saved/imported
+    // before this feature existed, so it behaves exactly like a single-set
+    // activity always did and the edit form doesn't show blank fields.
+    function backfillRepsSetDefaults(activity) {
+      if (activity && activity.type === 'reps') {
+        if (activity.sets === undefined) activity.sets = 1;
+        if (activity.restBetweenSets === undefined) activity.restBetweenSets = 0;
+      }
+      return activity;
+    }
+
+    function migrateFavorites(favorites) {
+      if (Array.isArray(favorites)) favorites.forEach(backfillRepsSetDefaults);
+      return favorites;
     }
 
     function saveRoutines() {
@@ -1833,15 +1874,16 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       constructor() {
         this.routine = null;
         this.activityIndex = 0;
-        this.subState = 'WORK'; // 'WORK', 'REST'
+        this.subState = 'WORK'; // 'WORK', 'REST', 'SET_REST'
         this.currentRep = 0;
+        this.currentSet = 1;
         this.timer = null;
         this.isPaused = false;
         this.wakeLock = null;
-        // Bumped on every stop()/loadActivity() so a speech onend/onerror
-        // callback that outlives its phase (e.g. fired by stopSpeech()'s
-        // cancel() after Stop was pressed) can tell it's stale and no-op
-        // instead of restarting the tick loop.
+        // Bumped at the start of every setup*Phase()/stop() so a speech
+        // onend/onerror callback that outlives its phase (e.g. fired by
+        // stopSpeech()'s cancel() after Stop or Skip was pressed) can tell
+        // it's stale and no-op instead of restarting the tick loop.
         this.generation = 0;
 
         // Time tracking
@@ -1877,7 +1919,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       }
 
       loadActivity() {
-        this.generation++;
+        this.currentSet = 1;
         if (this.activityIndex >= this.routine.activities.length) {
           this.finishRoutine();
           return;
@@ -1896,19 +1938,41 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
       }
 
+      // "Set 2 of 3: Rep 4 of 10" once Sets > 1, otherwise unchanged.
+      repSubText(activity) {
+        const sets = activity.sets || 1;
+        const repText = `Rep ${this.currentRep} of ${activity.reps}`;
+        return sets > 1 ? `Set ${this.currentSet} of ${sets}: ${repText}` : repText;
+      }
+
       setupRepsPhase(activity) {
         // accTime is re-added per rep in tick() to prevent timing drift.
+        this.generation++;
         this.stopLoop();
         this.subState = 'WORK';
         this.currentRep = 1;
         this.accTime = activity.pace;
 
-        ui.updatePlayerStatus('WORK', 'status-rep', activity.title, this.currentRep, `Rep 1 of ${activity.reps}`, this.getNextPreview());
+        ui.updatePlayerStatus('WORK', 'status-rep', activity.title, this.currentRep, this.repSubText(activity), this.getNextPreview());
         audioEngine.playChime();
         triggerHaptic([100, 50, 100]);
 
+        const sets = activity.sets || 1;
+        let announceText;
+        if (sets > 1) {
+          const parts = [`${activity.title}, set ${this.currentSet} of ${sets}.`];
+          if (this.currentSet === sets) {
+            const lastSetPhrasings = ['Last set.', 'Final set.'];
+            parts.push(lastSetPhrasings[Math.floor(Math.random() * lastSetPhrasings.length)]);
+          }
+          parts.push('Begin.');
+          announceText = parts.join(' ');
+        } else {
+          announceText = `${activity.title}. Begin.`;
+        }
+
         const gen = this.generation;
-        audioEngine.speak(`${activity.title}. Begin.`, true, () => {
+        audioEngine.speak(announceText, true, () => {
           if (gen !== this.generation || this.isPaused || this.subState !== 'WORK') return;
           audioEngine.speak('1', false);
           audioEngine.playTick();
@@ -1919,6 +1983,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       }
 
       setupExerciseTimerPhase(activity) {
+        this.generation++;
         this.stopLoop();
         this.subState = 'WORK';
         this.accTime = activity.duration;
@@ -1938,6 +2003,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       }
 
       setupRestPhase(activity) {
+        this.generation++;
         this.stopLoop();
         this.subState = 'REST';
         this.accTime = activity.duration;
@@ -1951,7 +2017,56 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.startLoop();
       }
 
+      // Between-set rest for a multi-set Reps activity - distinct from
+      // setupRestPhase()'s between-Activity Rest so Skip and the "Next"
+      // preview can tell the two apart even though they look/sound similar.
+      // Only ever reached between sets, never after the final one - a
+      // trailing cooldown still needs its own Rest activity after this one.
+      setupSetRestPhase(activity) {
+        this.generation++;
+        this.stopLoop();
+        this.subState = 'SET_REST';
+        this.accTime = activity.restBetweenSets;
+        ui.updatePlayerStatus('REST', 'status-rest', activity.title, formatDisplayTime(this.accTime), 'Rest Between Sets', this.getNextPreview());
+
+        audioEngine.speak(`${activity.title}. ${formatDurationSpeech(activity.restBetweenSets)} rest between sets.`, true);
+        this.startLoop();
+      }
+
+      // Called once a set's reps are all done, whether that happened
+      // naturally (tick()) or because Skip cut it short. Moves on to the
+      // rest before the next set, straight into the next set if there's no
+      // rest configured, or - once every set is complete - to the next
+      // Activity in the routine.
+      advanceAfterSet(activity) {
+        const sets = activity.sets || 1;
+        if (this.currentSet < sets) {
+          this.currentSet++;
+          if (activity.restBetweenSets > 0) {
+            this.setupSetRestPhase(activity);
+          } else {
+            this.setupRepsPhase(activity);
+          }
+        } else {
+          this.activityIndex++;
+          this.loadActivity();
+        }
+      }
+
       getNextPreview() {
+        const activity = this.routine.activities[this.activityIndex];
+        if (activity && activity.type === 'reps') {
+          const sets = activity.sets || 1;
+          if (this.subState === 'SET_REST') {
+            // currentSet was already advanced to the upcoming one.
+            return `Next: ${activity.title}, set ${this.currentSet} of ${sets}.`;
+          }
+          if (this.subState === 'WORK' && this.currentSet < sets) {
+            return activity.restBetweenSets > 0
+              ? `Next: ${activity.title}, rest between sets.`
+              : `Next: ${activity.title}, set ${this.currentSet + 1} of ${sets}.`;
+          }
+        }
         const nextActivity = this.routine.activities[this.activityIndex + 1];
         if (nextActivity) {
           return `Next: ${nextActivity.title} (${nextActivity.type === 'reps' ? nextActivity.reps + ' reps' : nextActivity.duration + 's'})`;
@@ -2008,7 +2123,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
         const activity = this.routine.activities[this.activityIndex];
 
-        if (this.subState === 'REST') {
+        if (this.subState === 'REST' || this.subState === 'SET_REST') {
           if (currentSec !== prevSec && currentSec > 0) {
             ui.updateCounterDisplay(formatDisplayTime(this.accTime));
             const countdownThreshold = state.settings.countdownThreshold;
@@ -2020,8 +2135,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
 
           if (this.accTime <= 0) {
-            this.activityIndex++;
-            this.loadActivity();
+            if (this.subState === 'SET_REST') {
+              this.setupRepsPhase(activity);
+            } else {
+              this.activityIndex++;
+              this.loadActivity();
+            }
           }
         } else if (this.subState === 'WORK') {
           if (activity.type === 'exercise-timer') {
@@ -2047,14 +2166,13 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
                 this.currentRep++;
                 this.accTime += activity.pace; // accumulate offset to prevent drift
                 ui.updateCounterDisplay(this.currentRep);
-                ui.updateCounterSub(`Rep ${this.currentRep} of ${activity.reps}`);
+                ui.updateCounterSub(this.repSubText(activity));
                 audioEngine.speak(`${this.currentRep}`, true);
                 audioEngine.playTick();
                 triggerHaptic(60);
               } else {
                 // Rep set completed
-                this.activityIndex++;
-                this.loadActivity();
+                this.advanceAfterSet(activity);
               }
             }
           }
@@ -2074,8 +2192,18 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       skip() {
         audioEngine.stopSpeech();
-        this.activityIndex++;
-        this.loadActivity();
+        const activity = this.routine.activities[this.activityIndex];
+
+        if (this.subState === 'SET_REST') {
+          // Skip the rest, go straight into the next set.
+          this.setupRepsPhase(activity);
+        } else if (activity && activity.type === 'reps' && this.subState === 'WORK') {
+          // Cut this set short and move on, same as finishing its reps would.
+          this.advanceAfterSet(activity);
+        } else {
+          this.activityIndex++;
+          this.loadActivity();
+        }
       }
 
       stop() {
@@ -2130,7 +2258,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     // since both render the same per-type summary line.
     function getActivityDetailsText(activity) {
       if (activity.type === 'reps') {
-        return `${activity.reps} reps @ ${activity.pace}s/rep`;
+        const sets = activity.sets || 1;
+        return sets > 1
+          ? `${sets} sets x ${activity.reps} reps`
+          : `${activity.reps} reps @ ${activity.pace}s/rep`;
       } else if (activity.type === 'instructions') {
         return `Duration: ${activity.duration}s | Has Instructions`;
       }
@@ -2147,7 +2278,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       if (!a || !b || a.type !== b.type) return false;
       if ((a.title || '').trim() !== (b.title || '').trim()) return false;
       if (a.type === 'reps') {
-        return Number(a.reps) === Number(b.reps) && Number(a.pace) === Number(b.pace);
+        return Number(a.reps) === Number(b.reps) && Number(a.pace) === Number(b.pace)
+          && Number(a.sets || 1) === Number(b.sets || 1)
+          && Number(a.restBetweenSets || 0) === Number(b.restBetweenSets || 0);
       }
       if (a.type === 'instructions') {
         return Number(a.duration) === Number(b.duration) && (a.instructions || '').trim() === (b.instructions || '').trim();
@@ -2485,6 +2618,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       activityTitleInput: document.getElementById('activity-title-input'),
       activityRepsInput: document.getElementById('activity-reps-input'),
       activityPaceInput: document.getElementById('activity-pace-input'),
+      activitySetsInput: document.getElementById('activity-sets-input'),
+      activityRestBetweenSetsInput: document.getElementById('activity-rest-between-sets-input'),
       activityDurationInput: document.getElementById('activity-duration-input'),
       activityInstructionsInput: document.getElementById('activity-instructions-input'),
       repsFields: document.getElementById('reps-fields'),
@@ -2592,7 +2727,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.updateFavoriteToggleUI();
         });
 
-        [this.activityTitleInput, this.activityRepsInput, this.activityPaceInput, this.activityDurationInput, this.activityInstructionsInput].forEach((input) => {
+        [this.activityTitleInput, this.activityRepsInput, this.activityPaceInput, this.activitySetsInput, this.activityRestBetweenSetsInput, this.activityDurationInput, this.activityInstructionsInput].forEach((input) => {
           input.addEventListener('input', () => this.refreshFavoriteMatchState());
         });
         this.activityTypeSelect.addEventListener('change', () => this.refreshFavoriteMatchState());
@@ -2601,6 +2736,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           [this.activityTitleInput, 'activity-title-error'],
           [this.activityRepsInput, 'activity-reps-error'],
           [this.activityPaceInput, 'activity-pace-error'],
+          [this.activitySetsInput, 'activity-sets-error'],
+          [this.activityRestBetweenSetsInput, 'activity-rest-between-sets-error'],
+          [this.activityDurationInput, 'activity-duration-error'],
           [this.activityInstructionsInput, 'activity-instructions-error']
         ].forEach(([input, errorId]) => {
           input.addEventListener('input', () => clearFieldError(input, errorId));
@@ -2982,6 +3120,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             if (type === 'reps') {
               this.activityRepsInput.value = activity.reps;
               this.activityPaceInput.value = activity.pace;
+              this.activitySetsInput.value = activity.sets || 1;
+              this.activityRestBetweenSetsInput.value = activity.restBetweenSets || 0;
             } else {
               this.activityDurationInput.value = activity.duration;
               this.activityInstructionsInput.value = activity.instructions || '';
@@ -2992,6 +3132,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.activityTitleInput.value = '';
           this.activityRepsInput.value = 10;
           this.activityPaceInput.value = 3.0;
+          this.activitySetsInput.value = 1;
+          this.activityRestBetweenSetsInput.value = 0;
           this.activityDurationInput.value = 60;
           this.activityInstructionsInput.value = '';
         }
@@ -3002,6 +3144,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           [this.activityTitleInput, 'activity-title-error'],
           [this.activityRepsInput, 'activity-reps-error'],
           [this.activityPaceInput, 'activity-pace-error'],
+          [this.activitySetsInput, 'activity-sets-error'],
+          [this.activityRestBetweenSetsInput, 'activity-rest-between-sets-error'],
+          [this.activityDurationInput, 'activity-duration-error'],
           [this.activityInstructionsInput, 'activity-instructions-error']
         ].forEach(([input, errorId]) => clearFieldError(input, errorId));
 
@@ -3024,6 +3169,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           title: this.activityTitleInput.value,
           reps: this.activityRepsInput.value,
           pace: this.activityPaceInput.value,
+          sets: this.activitySetsInput.value,
+          restBetweenSets: this.activityRestBetweenSetsInput.value,
           duration: this.activityDurationInput.value,
           instructions: this.activityInstructionsInput.value
         };
@@ -3036,7 +3183,13 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         const type = this.activityTypeSelect.value;
         const title = this.activityTitleInput.value;
         if (type === 'reps') {
-          return { type, title, reps: this.activityRepsInput.value, pace: this.activityPaceInput.value };
+          return {
+            type, title,
+            reps: this.activityRepsInput.value,
+            pace: this.activityPaceInput.value,
+            sets: this.activitySetsInput.value,
+            restBetweenSets: this.activityRestBetweenSetsInput.value
+          };
         }
         if (type === 'instructions') {
           return { type, title, duration: this.activityDurationInput.value, instructions: this.activityInstructionsInput.value };
@@ -3151,9 +3304,11 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         if (type === 'reps') {
           const reps = parseInt(this.activityRepsInput.value, 10);
           const pace = parseFloat(this.activityPaceInput.value);
+          const sets = parseInt(this.activitySetsInput.value, 10);
+          const restBetweenSets = parseInt(this.activityRestBetweenSetsInput.value, 10);
 
-          if (reps < 1) {
-            setFieldError(this.activityRepsInput, 'activity-reps-error', 'Total Reps must be at least 1.');
+          if (!(reps >= 1 && reps <= 500)) {
+            setFieldError(this.activityRepsInput, 'activity-reps-error', 'Total Reps must be between 1 and 500.');
             return;
           }
           clearFieldError(this.activityRepsInput, 'activity-reps-error');
@@ -3162,11 +3317,29 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             return;
           }
           clearFieldError(this.activityPaceInput, 'activity-pace-error');
+          if (!(sets >= 1 && sets <= 5)) {
+            setFieldError(this.activitySetsInput, 'activity-sets-error', 'Sets must be between 1 and 5.');
+            return;
+          }
+          clearFieldError(this.activitySetsInput, 'activity-sets-error');
+          if (!(restBetweenSets >= 0 && restBetweenSets <= 300)) {
+            setFieldError(this.activityRestBetweenSetsInput, 'activity-rest-between-sets-error', 'Rest Between Sets must be between 0 and 300 seconds.');
+            return;
+          }
+          clearFieldError(this.activityRestBetweenSetsInput, 'activity-rest-between-sets-error');
 
-          activityData.reps = Math.max(1, reps || 1);
+          activityData.reps = reps;
           activityData.pace = Math.max(0.5, pace || 1.0);
+          activityData.sets = sets;
+          activityData.restBetweenSets = restBetweenSets;
         } else {
-          activityData.duration = Math.max(1, parseInt(this.activityDurationInput.value, 10) || 1);
+          const duration = parseInt(this.activityDurationInput.value, 10);
+          if (!(duration >= 1 && duration <= 14400)) {
+            setFieldError(this.activityDurationInput, 'activity-duration-error', 'Duration must be between 1 and 14400 seconds.');
+            return;
+          }
+          clearFieldError(this.activityDurationInput, 'activity-duration-error');
+          activityData.duration = duration;
 
           if (type === 'instructions') {
             const instructions = this.activityInstructionsInput.value.trim();
@@ -3373,7 +3546,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               this.loadSettingsUI();
             }
             if (Array.isArray(importedData.favorites)) {
-              state.favorites = importedData.favorites;
+              state.favorites = migrateFavorites(importedData.favorites);
               saveFavorites();
             }
             this.renderRoutinesList();
