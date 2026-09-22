@@ -98,23 +98,24 @@ test.describe('Playback notification: Settings opt-in', () => {
 });
 
 test.describe('Playback notification: showNotification()/close() call shape', () => {
-  // Exercises the real playbackNotification.update()/close(), but replaces
-  // navigator.serviceWorker.ready itself with a promise resolving to a
-  // plain fake registration object, instead of reading real notifications
-  // back via a real ServiceWorkerRegistration's getNotifications(). Two
-  // earlier attempts at patching showNotification/getNotifications - first
-  // on the specific instance playbackNotification resolves, then on
-  // ServiceWorkerRegistration.prototype - both failed identically on CI
-  // (the patched function was never invoked), which points to those being
-  // non-writable own properties on whatever real registration object CI's
-  // Chromium build hands back. A fully fake registration sidesteps that
-  // platform quirk entirely - there's no real ServiceWorkerRegistration
-  // involved to have surprising property semantics.
+  // Exercises playbackNotification.update()/close() in isolation: rather
+  // than going through the real Settings-toggle -> requestPermission() ->
+  // saveSettings() flow (whose timing proved unreliable on CI across
+  // several earlier attempts - see git history on this file) and a real or
+  // faked ServiceWorkerRegistration, this sets update()'s two guard
+  // conditions directly (state.settings.playbackNotifications,
+  // Notification.permission) and replaces navigator.serviceWorker.ready
+  // with a promise resolving to a plain fake registration object. No real
+  // permission grant or ServiceWorkerRegistration is involved at all, so
+  // there's nothing left to race or to have surprising platform-specific
+  // property semantics.
   test('update() calls showNotification with the right title/body/tag/actions; close() closes matching-tag notifications', async ({ page }) => {
     await resetApp(page);
-    await enableNotifications(page);
 
     const result = await page.evaluate(async () => {
+      state.settings.playbackNotifications = true;
+      Object.defineProperty(Notification, 'permission', { value: 'granted', configurable: true });
+
       const fakeReg = { _showCall: null, _getNotificationsTagArg: null, _closedCount: 0 };
       fakeReg.showNotification = (title, options) => {
         fakeReg._showCall = { title, options };
@@ -129,9 +130,18 @@ test.describe('Playback notification: showNotification()/close() call shape', ()
       await playbackNotification.update('Push-ups', 'Rep 1 of 10', false);
       await playbackNotification.close();
 
-      return { showCall: fakeReg._showCall, getNotificationsTagArg: fakeReg._getNotificationsTagArg, closedCount: fakeReg._closedCount };
+      return {
+        showCall: fakeReg._showCall,
+        getNotificationsTagArg: fakeReg._getNotificationsTagArg,
+        closedCount: fakeReg._closedCount,
+        // Diagnostics in case the guard conditions above still don't hold
+        // for some other reason - keeps a future failure legible instead
+        // of another blind "null" with no clue why.
+        diag: { settingsFlag: state.settings.playbackNotifications, permission: Notification.permission, hasSW: 'serviceWorker' in navigator }
+      };
     });
 
+    expect(result.showCall, `diag: ${JSON.stringify(result.diag)}`).not.toBeNull();
     expect(result.showCall.title).toBe('Push-ups');
     expect(result.showCall.options).toMatchObject({
       body: 'Rep 1 of 10',
@@ -145,16 +155,19 @@ test.describe('Playback notification: showNotification()/close() call shape', ()
 
   test('a paused Pause action shows as "Resume"', async ({ page }) => {
     await resetApp(page);
-    await enableNotifications(page);
 
-    const options = await page.evaluate(async () => {
+    const result = await page.evaluate(async () => {
+      state.settings.playbackNotifications = true;
+      Object.defineProperty(Notification, 'permission', { value: 'granted', configurable: true });
+
       const fakeReg = { _captured: null };
       fakeReg.showNotification = (title, opts) => { fakeReg._captured = opts; return Promise.resolve(); };
       Object.defineProperty(navigator.serviceWorker, 'ready', { get: () => Promise.resolve(fakeReg), configurable: true });
       await playbackNotification.update('Push-ups', 'Paused - Rep 1 of 10', true);
-      return fakeReg._captured;
+      return { captured: fakeReg._captured, diag: { settingsFlag: state.settings.playbackNotifications, permission: Notification.permission } };
     });
-    expect(options.actions.find(a => a.action === 'pause').title).toBe('Resume');
+    expect(result.captured, `diag: ${JSON.stringify(result.diag)}`).not.toBeNull();
+    expect(result.captured.actions.find(a => a.action === 'pause').title).toBe('Resume');
   });
 });
 
