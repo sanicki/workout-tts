@@ -98,46 +98,38 @@ test.describe('Playback notification: Settings opt-in', () => {
 });
 
 test.describe('Playback notification: showNotification()/close() call shape', () => {
-  // Exercises the real playbackNotification.update()/close(), but stubs
-  // showNotification/getNotifications at the ServiceWorkerRegistration
-  // *prototype* level as recording spies rather than reading real
-  // notifications back via getNotifications() on a specific registration
-  // instance - CI runners (e.g. GitHub Actions' Linux images) commonly have
-  // no system notification service for Chromium's real notification bridge
-  // to hand off to, so a shown notification silently never appears in
-  // getNotifications() there even though permission is genuinely granted;
-  // patching the prototype (rather than a `navigator.serviceWorker.ready`-
-  // resolved instance, which isn't reliably the same object reference the
-  // app's own code resolves) guarantees the interception is seen regardless
-  // of which registration instance playbackNotification internally uses.
+  // Exercises the real playbackNotification.update()/close(), but replaces
+  // navigator.serviceWorker.ready itself with a promise resolving to a
+  // plain fake registration object, instead of reading real notifications
+  // back via a real ServiceWorkerRegistration's getNotifications(). Two
+  // earlier attempts at patching showNotification/getNotifications - first
+  // on the specific instance playbackNotification resolves, then on
+  // ServiceWorkerRegistration.prototype - both failed identically on CI
+  // (the patched function was never invoked), which points to those being
+  // non-writable own properties on whatever real registration object CI's
+  // Chromium build hands back. A fully fake registration sidesteps that
+  // platform quirk entirely - there's no real ServiceWorkerRegistration
+  // involved to have surprising property semantics.
   test('update() calls showNotification with the right title/body/tag/actions; close() closes matching-tag notifications', async ({ page }) => {
     await resetApp(page);
     await enableNotifications(page);
 
     const result = await page.evaluate(async () => {
-      let showCall = null;
-      const originalShowNotification = ServiceWorkerRegistration.prototype.showNotification;
-      ServiceWorkerRegistration.prototype.showNotification = function (title, options) {
-        showCall = { title, options };
+      const fakeReg = { _showCall: null, _getNotificationsTagArg: null, _closedCount: 0 };
+      fakeReg.showNotification = (title, options) => {
+        fakeReg._showCall = { title, options };
         return Promise.resolve();
       };
+      fakeReg.getNotifications = (opts) => {
+        fakeReg._getNotificationsTagArg = opts && opts.tag;
+        return Promise.resolve([{ close: () => { fakeReg._closedCount++; } }]);
+      };
+      Object.defineProperty(navigator.serviceWorker, 'ready', { get: () => Promise.resolve(fakeReg), configurable: true });
 
       await playbackNotification.update('Push-ups', 'Rep 1 of 10', false);
-      ServiceWorkerRegistration.prototype.showNotification = originalShowNotification;
-
-      let getNotificationsTagArg = null;
-      let closedCount = 0;
-      const fakeNotification = { close: () => { closedCount++; } };
-      const originalGetNotifications = ServiceWorkerRegistration.prototype.getNotifications;
-      ServiceWorkerRegistration.prototype.getNotifications = function (opts) {
-        getNotificationsTagArg = opts && opts.tag;
-        return Promise.resolve([fakeNotification]);
-      };
-
       await playbackNotification.close();
-      ServiceWorkerRegistration.prototype.getNotifications = originalGetNotifications;
 
-      return { showCall, getNotificationsTagArg, closedCount };
+      return { showCall: fakeReg._showCall, getNotificationsTagArg: fakeReg._getNotificationsTagArg, closedCount: fakeReg._closedCount };
     });
 
     expect(result.showCall.title).toBe('Push-ups');
@@ -156,15 +148,11 @@ test.describe('Playback notification: showNotification()/close() call shape', ()
     await enableNotifications(page);
 
     const options = await page.evaluate(async () => {
-      let captured = null;
-      const original = ServiceWorkerRegistration.prototype.showNotification;
-      ServiceWorkerRegistration.prototype.showNotification = function (title, opts) {
-        captured = opts;
-        return Promise.resolve();
-      };
+      const fakeReg = { _captured: null };
+      fakeReg.showNotification = (title, opts) => { fakeReg._captured = opts; return Promise.resolve(); };
+      Object.defineProperty(navigator.serviceWorker, 'ready', { get: () => Promise.resolve(fakeReg), configurable: true });
       await playbackNotification.update('Push-ups', 'Paused - Rep 1 of 10', true);
-      ServiceWorkerRegistration.prototype.showNotification = original;
-      return captured;
+      return fakeReg._captured;
     });
     expect(options.actions.find(a => a.action === 'pause').title).toBe('Resume');
   });
