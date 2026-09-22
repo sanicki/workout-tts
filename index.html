@@ -1094,6 +1094,26 @@
       font-size: 1.1rem;
       color: var(--text-muted);
     }
+
+    /* Tiny unit captions under an h:mm:ss / mm:ss picker - Material's
+       supporting-text pattern, sized down for a per-segment micro-label
+       rather than a paragraph of help text. Mirrors the picker row's own
+       flex structure (three/two flex:1 items plus separators) so each
+       caption lines up under its select; the separator glyphs are
+       invisible spacers, not visible colons. */
+    .time-picker-captions {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+    .time-picker-captions span:not(.time-picker-sep) {
+      flex: 1;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .time-picker-captions .time-picker-sep { visibility: hidden; }
   </style>
 </head>
 <body>
@@ -1372,19 +1392,19 @@
           <div class="row">
             <div class="form-group">
               <label for="activity-reps-input">Total Reps</label>
-              <input type="number" id="activity-reps-input" min="1" max="500" value="10">
+              <input type="number" inputmode="numeric" id="activity-reps-input" min="1" max="500" value="10">
               <p id="activity-reps-error" class="field-error" hidden></p>
             </div>
             <div class="form-group">
               <label for="activity-pace-input">Pace / Rep (s)</label>
-              <input type="number" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
+              <input type="number" inputmode="decimal" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
               <p id="activity-pace-error" class="field-error" hidden></p>
             </div>
           </div>
           <div class="row">
             <div class="form-group">
               <label for="activity-sets-input">Sets</label>
-              <input type="number" id="activity-sets-input" min="1" max="5" value="1">
+              <input type="number" inputmode="numeric" id="activity-sets-input" min="1" max="5" value="1">
               <p id="activity-sets-error" class="field-error" hidden></p>
             </div>
             <div class="form-group">
@@ -1394,6 +1414,11 @@
                 <span class="time-picker-sep">:</span>
                 <select id="activity-rest-between-sets-seconds" aria-label="Rest between sets seconds"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
               </div>
+              <div class="time-picker-captions" aria-hidden="true">
+                <span>min</span>
+                <span class="time-picker-sep">:</span>
+                <span>sec</span>
+              </div>
               <p id="activity-rest-between-sets-error" class="field-error" hidden></p>
             </div>
           </div>
@@ -1402,17 +1427,33 @@
         <div id="duration-fields" class="hidden">
           <div class="form-group">
             <label id="activity-duration-label">Duration</label>
-            <div id="duration-picker-long" class="time-picker" role="group" aria-labelledby="activity-duration-label">
+            <div id="duration-picker-long">
+            <div class="time-picker" role="group" aria-labelledby="activity-duration-label">
               <select id="activity-duration-hours" aria-label="Duration hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>
               <span class="time-picker-sep">:</span>
               <select id="activity-duration-minutes-long" aria-label="Duration minutes"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
               <span class="time-picker-sep">:</span>
               <select id="activity-duration-seconds-long" aria-label="Duration seconds"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
             </div>
-            <div id="duration-picker-short" class="time-picker hidden" role="group" aria-labelledby="activity-duration-label">
+            <div class="time-picker-captions" aria-hidden="true">
+              <span>hr</span>
+              <span class="time-picker-sep">:</span>
+              <span>min</span>
+              <span class="time-picker-sep">:</span>
+              <span>sec</span>
+            </div>
+            </div>
+            <div id="duration-picker-short" class="hidden">
+            <div class="time-picker" role="group" aria-labelledby="activity-duration-label">
               <select id="activity-duration-minutes-short" aria-label="Duration minutes"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>
               <span class="time-picker-sep">:</span>
               <select id="activity-duration-seconds-short" aria-label="Duration seconds"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
+            </div>
+            <div class="time-picker-captions" aria-hidden="true">
+              <span>min</span>
+              <span class="time-picker-sep">:</span>
+              <span>sec</span>
+            </div>
             </div>
             <p id="activity-duration-error" class="field-error" hidden></p>
           </div>
