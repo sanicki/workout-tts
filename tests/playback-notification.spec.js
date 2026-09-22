@@ -87,32 +87,44 @@ test.describe('Playback notification: Settings opt-in', () => {
 });
 
 test.describe('Playback notification: showNotification()/close() call shape', () => {
-  // Exercises the real playbackNotification.update()/close() against the
-  // real ServiceWorkerRegistration, but stubs showNotification/
-  // getNotifications themselves as recording spies rather than reading
-  // real notifications back via getNotifications() - CI runners (e.g.
-  // GitHub Actions' Linux images) commonly have no system notification
-  // service for Chromium's real notification bridge to hand off to, so a
-  // shown notification silently never appears in getNotifications() there
-  // even though permission is genuinely granted and showNotification()
-  // itself resolves without error.
+  // Exercises the real playbackNotification.update()/close(), but stubs
+  // showNotification/getNotifications at the ServiceWorkerRegistration
+  // *prototype* level as recording spies rather than reading real
+  // notifications back via getNotifications() on a specific registration
+  // instance - CI runners (e.g. GitHub Actions' Linux images) commonly have
+  // no system notification service for Chromium's real notification bridge
+  // to hand off to, so a shown notification silently never appears in
+  // getNotifications() there even though permission is genuinely granted;
+  // patching the prototype (rather than a `navigator.serviceWorker.ready`-
+  // resolved instance, which isn't reliably the same object reference the
+  // app's own code resolves) guarantees the interception is seen regardless
+  // of which registration instance playbackNotification internally uses.
   test('update() calls showNotification with the right title/body/tag/actions; close() closes matching-tag notifications', async ({ page }) => {
     await resetApp(page);
     await enableNotifications(page);
 
     const result = await page.evaluate(async () => {
-      const reg = await navigator.serviceWorker.ready;
       let showCall = null;
-      reg.showNotification = (title, options) => { showCall = { title, options }; return Promise.resolve(); };
+      const originalShowNotification = ServiceWorkerRegistration.prototype.showNotification;
+      ServiceWorkerRegistration.prototype.showNotification = function (title, options) {
+        showCall = { title, options };
+        return Promise.resolve();
+      };
 
       await playbackNotification.update('Push-ups', 'Rep 1 of 10', false);
+      ServiceWorkerRegistration.prototype.showNotification = originalShowNotification;
 
       let getNotificationsTagArg = null;
       let closedCount = 0;
       const fakeNotification = { close: () => { closedCount++; } };
-      reg.getNotifications = (opts) => { getNotificationsTagArg = opts && opts.tag; return Promise.resolve([fakeNotification]); };
+      const originalGetNotifications = ServiceWorkerRegistration.prototype.getNotifications;
+      ServiceWorkerRegistration.prototype.getNotifications = function (opts) {
+        getNotificationsTagArg = opts && opts.tag;
+        return Promise.resolve([fakeNotification]);
+      };
 
       await playbackNotification.close();
+      ServiceWorkerRegistration.prototype.getNotifications = originalGetNotifications;
 
       return { showCall, getNotificationsTagArg, closedCount };
     });
@@ -133,10 +145,14 @@ test.describe('Playback notification: showNotification()/close() call shape', ()
     await enableNotifications(page);
 
     const options = await page.evaluate(async () => {
-      const reg = await navigator.serviceWorker.ready;
       let captured = null;
-      reg.showNotification = (title, opts) => { captured = opts; return Promise.resolve(); };
+      const original = ServiceWorkerRegistration.prototype.showNotification;
+      ServiceWorkerRegistration.prototype.showNotification = function (title, opts) {
+        captured = opts;
+        return Promise.resolve();
+      };
       await playbackNotification.update('Push-ups', 'Paused - Rep 1 of 10', true);
+      ServiceWorkerRegistration.prototype.showNotification = original;
       return captured;
     });
     expect(options.actions.find(a => a.action === 'pause').title).toBe('Resume');
