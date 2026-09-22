@@ -193,7 +193,7 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     await expect(page.locator('#activity-modal')).toBeHidden();
   });
 
-  test('Rest and Instructions duration are capped at 5 minutes, not the Exercise Timer 5-hour cap', async ({ page }) => {
+  test('Rest duration is capped at 5 minutes, not the Exercise Timer 5-hour cap', async ({ page }) => {
     await page.selectOption('#activity-type-select', 'rest');
     await expect(page.locator('#duration-picker-short')).toBeVisible();
     await expect(page.locator('#duration-picker-long')).toBeHidden();

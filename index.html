@@ -336,7 +336,7 @@
 
     textarea {
       resize: vertical;
-      min-height: 80px;
+      min-height: 160px;
     }
 
     input[type="range"] {
@@ -826,6 +826,12 @@
       font-variant-numeric: tabular-nums;
       margin: 1rem 0;
       color: var(--text-main);
+    }
+
+    /* Instructions' "Get Ready" is a short phrase, not a number/mm:ss - the
+       7rem default (sized for those) overflows a narrow viewport. */
+    #counter-display.counter-display-text {
+      font-size: 2rem;
     }
 
     .counter-sub {
@@ -1658,8 +1664,7 @@ Then create a detailed workout routine in JSON format that can be imported into 
 ROUTINE STRUCTURE:
 A routine is a sequence of "activities". There are four activity types:
 
-1. **Instructions** - spoken setup describing the upcoming exercise, with a duration (seconds) to allow time to get into position. Place one of these immediately BEFORE every single exercise, with no exceptions (including the very first one in the routine).
-   - duration: seconds to get set up (typically 15-30s)
+1. **Instructions** - spoken setup describing the upcoming exercise. Runs for as long as it takes to read the instructions aloud, then moves on automatically - there's no duration to set. Place one of these immediately BEFORE every single exercise, with no exceptions (including the very first one in the routine).
    - instructions: 1-2 sentences describing the exercise and how to perform it, as if reminding someone unfamiliar with it. Examples:
      * "Push-ups: assume a push-up position with shoulders back, hands directly beneath shoulders"
      * "Bodyweight squats: stand with feet hip-width apart, engage your core for balance"
@@ -1696,7 +1701,6 @@ SPECIFIC REQUIREMENTS:
       "id": "activity-[number]",
       "type": "instructions",
       "title": "[Exercise Name]",
-      "duration": [seconds],
       "instructions": "[Description of the exercise and how to perform it]"
     },
     {
@@ -1712,7 +1716,6 @@ SPECIFIC REQUIREMENTS:
       "id": "activity-[number]",
       "type": "instructions",
       "title": "[Exercise Name]",
-      "duration": [seconds],
       "instructions": "[Description of the exercise and how to perform it]"
     },
     {
@@ -1750,7 +1753,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
           // Old 'rest' type: instructions populated -> 'instructions', otherwise plain 'rest'.
           return (block.instructions && block.instructions.trim())
-            ? { id: block.id, type: 'instructions', title: block.title, duration: block.duration, instructions: block.instructions.trim() }
+            ? { id: block.id, type: 'instructions', title: block.title, instructions: block.instructions.trim() }
             : { id: block.id, type: 'rest', title: block.title, duration: block.duration };
         });
         delete routine.blocks;
@@ -1758,6 +1761,12 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       if (Array.isArray(routine.activities)) {
         routine.activities.forEach(backfillRepsSetDefaults);
+        // Instructions used to carry a user-set duration field before it
+        // switched to ending on its own, 1s after the TTS finishes - drop
+        // any leftover value so it doesn't linger unused in storage.
+        routine.activities.forEach(activity => {
+          if (activity.type === 'instructions') delete activity.duration;
+        });
       }
 
       return routine;
@@ -2130,9 +2139,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.setupRepsPhase(activity);
         } else if (activity.type === 'exercise-timer') {
           this.setupExerciseTimerPhase(activity);
+        } else if (activity.type === 'instructions') {
+          this.setupInstructionsPhase(activity);
         } else {
-          // 'instructions' and 'rest' are both a duration-based countdown,
-          // differing only in what's announced at the start.
           this.setupRestPhase(activity);
         }
       }
@@ -2208,15 +2217,34 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.stopLoop();
         this.subState = 'REST';
         this.accTime = activity.duration;
-        ui.updatePlayerStatus('REST', 'status-rest', activity.title, formatDisplayTime(this.accTime), activity.type === 'instructions' ? 'Get Ready' : 'Rest', this.getNextPreview());
+        ui.updatePlayerStatus('REST', 'status-rest', activity.title, formatDisplayTime(this.accTime), 'Rest', this.getNextPreview());
         this.refreshPlaybackNotification();
 
-        const phrase = activity.type === 'instructions' && activity.instructions.trim()
-          ? activity.instructions.trim()
-          : `${activity.title}. ${formatDurationSpeech(activity.duration)} rest.`;
-
-        audioEngine.speak(phrase, true);
+        audioEngine.speak(`${activity.title}. ${formatDurationSpeech(activity.duration)} rest.`, true);
         this.startLoop();
+      }
+
+      // No fixed duration - the phase runs for exactly as long as the
+      // instructions take to read aloud, then a 1s beat before moving on.
+      // Not tick()/accTime-driven at all, unlike every other phase.
+      setupInstructionsPhase(activity) {
+        this.generation++;
+        this.stopLoop();
+        this.subState = 'REST';
+
+        const phrase = (activity.instructions || '').trim() || activity.title;
+        ui.updatePlayerStatus('REST', 'status-rest', activity.title, 'Get Ready', phrase, this.getNextPreview());
+        this.refreshPlaybackNotification();
+
+        const gen = this.generation;
+        audioEngine.speak(phrase, true, () => {
+          if (gen !== this.generation || this.isPaused) return;
+          setTimeout(() => {
+            if (gen !== this.generation || this.isPaused) return;
+            this.activityIndex++;
+            this.loadActivity();
+          }, 1000);
+        });
       }
 
       // Between-set rest for a multi-set Reps activity - distinct from
@@ -2272,7 +2300,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
         const nextActivity = this.routine.activities[this.activityIndex + 1];
         if (nextActivity) {
-          return `Next: ${nextActivity.title} (${nextActivity.type === 'reps' ? nextActivity.reps + ' reps' : nextActivity.duration + 's'})`;
+          if (nextActivity.type === 'reps') return `Next: ${nextActivity.title} (${nextActivity.reps} reps)`;
+          if (nextActivity.type === 'instructions') return `Next: ${nextActivity.title}`;
+          return `Next: ${nextActivity.title} (${nextActivity.duration}s)`;
         }
         return 'Next: Workout Complete';
       }
@@ -2287,9 +2317,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         if (!activity) return '';
         if (this.subState === 'SET_REST') return `${formatDurationCompact(activity.restBetweenSets)} Rest Between Sets`;
         if (this.subState === 'REST') {
-          return activity.type === 'instructions'
-            ? `${formatDurationCompact(activity.duration)} Get Ready`
-            : `${formatDurationCompact(activity.duration)} Rest`;
+          return activity.type === 'instructions' ? 'Get Ready' : `${formatDurationCompact(activity.duration)} Rest`;
         }
         if (activity.type === 'exercise-timer') return `${formatDurationCompact(activity.duration)} Work`;
         const sets = activity.sets || 1;
@@ -2418,7 +2446,16 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           audioEngine.stopSpeech();
           ui.setPauseButtonText('Resume');
         } else {
-          this.lastTime = performance.now();
+          const activity = this.routine.activities[this.activityIndex];
+          // Instructions has no accTime countdown to just un-freeze - the
+          // stopSpeech() above already cut off the narration mid-sentence,
+          // with no way to resume from that exact point, so Resume starts
+          // the phase over instead.
+          if (activity && activity.type === 'instructions' && this.subState === 'REST') {
+            this.setupInstructionsPhase(activity);
+          } else {
+            this.lastTime = performance.now();
+          }
           ui.setPauseButtonText('Pause');
         }
         this.refreshPlaybackNotification();
@@ -2499,7 +2536,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           ? `${sets} sets x ${activity.reps} reps`
           : `${activity.reps} reps @ ${activity.pace}s/rep`;
       } else if (activity.type === 'instructions') {
-        return `Duration: ${activity.duration}s | Has Instructions`;
+        return activity.instructions || '';
       }
       return `Duration: ${activity.duration}s`;
     }
@@ -2519,7 +2556,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           && Number(a.restBetweenSets || 0) === Number(b.restBetweenSets || 0);
       }
       if (a.type === 'instructions') {
-        return Number(a.duration) === Number(b.duration) && (a.instructions || '').trim() === (b.instructions || '').trim();
+        return (a.instructions || '').trim() === (b.instructions || '').trim();
       }
       return Number(a.duration) === Number(b.duration);
     }
@@ -3439,9 +3476,10 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               this.activityPaceInput.value = activity.pace;
               this.activitySetsInput.value = activity.sets || 1;
               this.setRestBetweenSetsSeconds(activity.restBetweenSets || 0);
+            } else if (type === 'instructions') {
+              this.activityInstructionsInput.value = activity.instructions || '';
             } else {
               this.setDurationSeconds(activity.duration, type);
-              this.activityInstructionsInput.value = activity.instructions || '';
             }
           }
         } else {
@@ -3512,7 +3550,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           };
         }
         if (type === 'instructions') {
-          return { type, title, duration: this.getDurationSeconds(type), instructions: this.activityInstructionsInput.value };
+          return { type, title, instructions: this.activityInstructionsInput.value };
         }
         return { type, title, duration: this.getDurationSeconds(type) };
       },
@@ -3635,7 +3673,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
 
       toggleActivityModalFields(type) {
         this.repsFields.classList.toggle('hidden', type !== 'reps');
-        this.durationFields.classList.toggle('hidden', type === 'reps');
+        this.durationFields.classList.toggle('hidden', type === 'reps' || type === 'instructions');
         this.instructionsFields.classList.toggle('hidden', type !== 'instructions');
         this.durationPickerLong.classList.toggle('hidden', type !== 'exercise-timer');
         this.durationPickerShort.classList.toggle('hidden', type === 'exercise-timer');
@@ -3648,7 +3686,6 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           durationLabel.textContent = 'Exercise Duration';
         } else if (type === 'instructions') {
           this.activityTitleInput.placeholder = 'e.g., Get Ready';
-          durationLabel.textContent = 'Duration';
         } else {
           this.activityTitleInput.placeholder = 'e.g., Rest';
           durationLabel.textContent = 'Rest Duration';
@@ -3729,6 +3766,14 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           activityData.pace = pace;
           activityData.sets = sets;
           activityData.restBetweenSets = restBetweenSets;
+        } else if (type === 'instructions') {
+          const instructions = this.activityInstructionsInput.value.trim();
+          if (!instructions) {
+            setFieldError(this.activityInstructionsInput, 'activity-instructions-error', 'Instructions cannot be empty for this activity type.');
+            return;
+          }
+          clearFieldError(this.activityInstructionsInput, 'activity-instructions-error');
+          activityData.instructions = instructions;
         } else {
           const duration = this.getDurationSeconds(type);
           const maxDuration = type === 'exercise-timer' ? 18000 : 300;
@@ -3739,16 +3784,6 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
           clearFieldError(null, 'activity-duration-error');
           activityData.duration = duration;
-
-          if (type === 'instructions') {
-            const instructions = this.activityInstructionsInput.value.trim();
-            if (!instructions) {
-              setFieldError(this.activityInstructionsInput, 'activity-instructions-error', 'Instructions cannot be empty for this activity type.');
-              return;
-            }
-            clearFieldError(this.activityInstructionsInput, 'activity-instructions-error');
-            activityData.instructions = instructions;
-          }
         }
 
         // Reconcile Favorites against the final saved values (not just the
@@ -3903,6 +3938,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         this.playerStatusBadge.className = `player-status-badge ${badgeClass}`;
         this.currentTitle.textContent = title;
         this.counterDisplay.textContent = counter;
+        // The 7rem default size assumes a rep count or mm:ss (this is the
+        // only place a short phrase like "Get Ready" ever lands instead).
+        this.counterDisplay.classList.toggle('counter-display-text', !/^[\d:]+$/.test(counter));
         this.counterSub.textContent = subText;
         this.nextUpPreview.textContent = nextPreview;
       },
