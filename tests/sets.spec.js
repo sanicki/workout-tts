@@ -35,6 +35,17 @@ async function forceAdvance(page) {
   });
 }
 
+// Sets is a stepper (min/max buttons), not a free-typed field - drives it
+// to an exact target value by clicking + or - the right number of times.
+async function setSetsViaStepper(page, target) {
+  let current = parseInt(await page.inputValue('#activity-sets-input'), 10);
+  const button = target > current ? '#btn-sets-increment' : '#btn-sets-decrement';
+  while (current !== target) {
+    await page.click(button);
+    current = target > current ? current + 1 : current - 1;
+  }
+}
+
 async function seedSetsRoutine(page, activities) {
   await page.evaluate((activities) => {
     state.routines = [{ id: 'sets-test-routine', name: 'Sets Test Routine', activities }];
@@ -70,7 +81,7 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     await expect(page.locator('#rest-between-sets-group')).toHaveClass(/field-disabled/);
 
     // Raising Sets re-enables it.
-    await page.fill('#activity-sets-input', '3');
+    await setSetsViaStepper(page, 3);
     await expect(page.locator('#activity-rest-between-sets-minutes')).toBeEnabled();
     await expect(page.locator('#activity-rest-between-sets-seconds')).toBeEnabled();
     await expect(page.locator('#rest-between-sets-group')).not.toHaveClass(/field-disabled/);
@@ -81,7 +92,7 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     // Dropping back to Sets=1 disables it again AND zeroes out whatever
     // was selected, so a leftover non-zero value can't be silently saved
     // and silently ignored by the execution engine (the reported bug).
-    await page.fill('#activity-sets-input', '1');
+    await setSetsViaStepper(page, 1);
     await expect(page.locator('#activity-rest-between-sets-minutes')).toBeDisabled();
     expect(await page.inputValue('#activity-rest-between-sets-minutes')).toBe('0');
     expect(await page.inputValue('#activity-rest-between-sets-seconds')).toBe('0');
@@ -93,27 +104,38 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     expect(saved.restBetweenSets).toBe(0);
   });
 
-  test('Sets must be between 1 and 5', async ({ page }) => {
-    await page.fill('#activity-title-input', 'Bounds Test');
-    await page.fill('#activity-sets-input', '6');
-    await page.click('#btn-save-activity');
-    await page.waitForTimeout(200);
-    await expect(page.locator('#activity-sets-error')).toBeVisible();
+  test('Sets stepper is clamped to 1-5: boundary buttons disable, and clicks past a boundary are no-ops', async ({ page }) => {
+    // At the default Sets=1, decrement is disabled and does nothing.
+    await expect(page.locator('#btn-sets-decrement')).toBeDisabled();
+    await page.click('#btn-sets-decrement', { force: true });
+    expect(await page.inputValue('#activity-sets-input')).toBe('1');
 
-    await page.fill('#activity-sets-input', '0');
-    await page.click('#btn-save-activity');
-    await page.waitForTimeout(200);
-    await expect(page.locator('#activity-sets-error')).toBeVisible();
+    await setSetsViaStepper(page, 5);
+    expect(await page.inputValue('#activity-sets-input')).toBe('5');
+    await expect(page.locator('#btn-sets-increment')).toBeDisabled();
+    await page.click('#btn-sets-increment', { force: true });
+    expect(await page.inputValue('#activity-sets-input')).toBe('5');
 
-    await page.fill('#activity-sets-input', '5');
+    await page.fill('#activity-title-input', 'Max Sets Test');
     await page.click('#btn-save-activity');
     await page.waitForTimeout(300);
     await expect(page.locator('#activity-modal')).toBeHidden();
   });
 
+  test('a Sets value saved out of range by something other than the stepper (e.g. a hand-edited import) is still rejected on save', async ({ page }) => {
+    // saveActivity() keeps its own 1-5 validation as a backstop for data
+    // the stepper itself could never produce, since Sets can still arrive
+    // out of range via imported/pasted JSON.
+    await page.fill('#activity-title-input', 'Bad Import Test');
+    await page.evaluate(() => { document.getElementById('activity-sets-input').value = '6'; });
+    await page.click('#btn-save-activity');
+    await page.waitForTimeout(200);
+    await expect(page.locator('#activity-sets-error')).toBeVisible();
+  });
+
   test('Rest Between Sets must be between 0 and 5 minutes', async ({ page }) => {
     await page.fill('#activity-title-input', 'Rest Bounds Test');
-    await page.fill('#activity-sets-input', '3'); // Rest Between Sets is disabled at Sets=1
+    await setSetsViaStepper(page, 3); // Rest Between Sets is disabled at Sets=1
     await page.selectOption('#activity-rest-between-sets-minutes', '5');
     await page.selectOption('#activity-rest-between-sets-seconds', '1');
     await page.click('#btn-save-activity');
@@ -232,11 +254,11 @@ test.describe('Favorites matching includes Sets / Rest Between Sets', () => {
     await page.waitForTimeout(300);
     await expect(page.locator('#btn-favorite-toggle')).toHaveAttribute('aria-pressed', 'true');
 
-    await page.fill('#activity-sets-input', '3');
+    await setSetsViaStepper(page, 3);
     await page.waitForTimeout(100);
     await expect(page.locator('#btn-favorite-toggle')).toHaveAttribute('aria-pressed', 'false');
 
-    await page.fill('#activity-sets-input', '1');
+    await setSetsViaStepper(page, 1);
     await page.waitForTimeout(100);
     await expect(page.locator('#btn-favorite-toggle')).toHaveAttribute('aria-pressed', 'true');
 
