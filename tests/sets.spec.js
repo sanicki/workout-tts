@@ -53,11 +53,13 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     await page.waitForTimeout(300);
   });
 
-  test('default to Sets=1 / Rest=0s, and both are always visible for a Reps activity', async ({ page }) => {
+  test('default to Sets=1 / Rest=0:00, and both are always visible for a Reps activity', async ({ page }) => {
     await expect(page.locator('#activity-sets-input')).toBeVisible();
-    await expect(page.locator('#activity-rest-between-sets-input')).toBeVisible();
+    await expect(page.locator('#activity-rest-between-sets-minutes')).toBeVisible();
+    await expect(page.locator('#activity-rest-between-sets-seconds')).toBeVisible();
     expect(await page.inputValue('#activity-sets-input')).toBe('1');
-    expect(await page.inputValue('#activity-rest-between-sets-input')).toBe('0');
+    expect(await page.inputValue('#activity-rest-between-sets-minutes')).toBe('0');
+    expect(await page.inputValue('#activity-rest-between-sets-seconds')).toBe('0');
   });
 
   test('Sets must be between 1 and 5', async ({ page }) => {
@@ -78,14 +80,15 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     await expect(page.locator('#activity-modal')).toBeHidden();
   });
 
-  test('Rest Between Sets must be between 0 and 300 seconds', async ({ page }) => {
+  test('Rest Between Sets must be between 0 and 5 minutes', async ({ page }) => {
     await page.fill('#activity-title-input', 'Rest Bounds Test');
-    await page.fill('#activity-rest-between-sets-input', '301');
+    await page.selectOption('#activity-rest-between-sets-minutes', '5');
+    await page.selectOption('#activity-rest-between-sets-seconds', '1');
     await page.click('#btn-save-activity');
     await page.waitForTimeout(200);
     await expect(page.locator('#activity-rest-between-sets-error')).toBeVisible();
 
-    await page.fill('#activity-rest-between-sets-input', '300');
+    await page.selectOption('#activity-rest-between-sets-seconds', '0');
     await page.click('#btn-save-activity');
     await page.waitForTimeout(300);
     await expect(page.locator('#activity-modal')).toBeHidden();
@@ -104,15 +107,54 @@ test.describe('Reps Counter: Sets / Rest Between Sets form', () => {
     await expect(page.locator('#activity-modal')).toBeHidden();
   });
 
-  test('Duration accepts up to 14400 seconds (4 hours) for non-Reps types', async ({ page }) => {
+  test('Exercise Timer duration accepts up to 5 hours via the h:mm:ss picker', async ({ page }) => {
     await page.selectOption('#activity-type-select', 'exercise-timer');
+    await expect(page.locator('#duration-picker-long')).toBeVisible();
+    await expect(page.locator('#duration-picker-short')).toBeHidden();
+
     await page.fill('#activity-title-input', 'Long Duration Test');
-    await page.fill('#activity-duration-input', '14401');
+    await page.selectOption('#activity-duration-hours', '5');
+    await page.selectOption('#activity-duration-minutes-long', '0');
+    await page.selectOption('#activity-duration-seconds-long', '1');
     await page.click('#btn-save-activity');
     await page.waitForTimeout(200);
     await expect(page.locator('#activity-duration-error')).toBeVisible();
 
-    await page.fill('#activity-duration-input', '14400');
+    await page.selectOption('#activity-duration-seconds-long', '0');
+    await page.click('#btn-save-activity');
+    await page.waitForTimeout(300);
+    await expect(page.locator('#activity-modal')).toBeHidden();
+  });
+
+  test('Rest and Instructions duration are capped at 5 minutes, not the Exercise Timer 5-hour cap', async ({ page }) => {
+    await page.selectOption('#activity-type-select', 'rest');
+    await expect(page.locator('#duration-picker-short')).toBeVisible();
+    await expect(page.locator('#duration-picker-long')).toBeHidden();
+
+    await page.fill('#activity-title-input', 'Rest Duration Test');
+    await page.selectOption('#activity-duration-minutes-short', '5');
+    await page.selectOption('#activity-duration-seconds-short', '1');
+    await page.click('#btn-save-activity');
+    await page.waitForTimeout(200);
+    await expect(page.locator('#activity-duration-error')).toBeVisible();
+
+    await page.selectOption('#activity-duration-seconds-short', '0');
+    await page.click('#btn-save-activity');
+    await page.waitForTimeout(300);
+    await expect(page.locator('#activity-modal')).toBeHidden();
+  });
+
+  test('a 0-second duration is rejected with an inline error, not silently clamped', async ({ page }) => {
+    await page.selectOption('#activity-type-select', 'rest');
+    await page.fill('#activity-title-input', 'Zero Duration Test');
+    await page.selectOption('#activity-duration-minutes-short', '0');
+    await page.selectOption('#activity-duration-seconds-short', '0');
+    await page.click('#btn-save-activity');
+    await page.waitForTimeout(200);
+    await expect(page.locator('#activity-duration-error')).toBeVisible();
+    await expect(page.locator('#activity-modal')).toBeVisible();
+
+    await page.selectOption('#activity-duration-seconds-short', '1');
     await page.click('#btn-save-activity');
     await page.waitForTimeout(300);
     await expect(page.locator('#activity-modal')).toBeHidden();

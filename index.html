@@ -1079,6 +1079,41 @@
     }
     .row > * { flex: 1; }
     .hidden { display: none !important; }
+
+    /* h:mm:ss / mm:ss duration entry - a row of <select>s read like a clock
+       face instead of a raw "duration in seconds" number, which stops
+       matching how anyone thinks about a value once it can span hours. */
+    .time-picker {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .time-picker select { flex: 1; min-width: 0; text-align: center; }
+    .time-picker-sep {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+
+    /* Tiny unit captions under an h:mm:ss / mm:ss picker - Material's
+       supporting-text pattern, sized down for a per-segment micro-label
+       rather than a paragraph of help text. Mirrors the picker row's own
+       flex structure (three/two flex:1 items plus separators) so each
+       caption lines up under its select; the separator glyphs are
+       invisible spacers, not visible colons. */
+    .time-picker-captions {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+    .time-picker-captions span:not(.time-picker-sep) {
+      flex: 1;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .time-picker-captions .time-picker-sep { visibility: hidden; }
   </style>
 </head>
 <body>
@@ -1357,24 +1392,33 @@
           <div class="row">
             <div class="form-group">
               <label for="activity-reps-input">Total Reps</label>
-              <input type="number" id="activity-reps-input" min="1" max="500" value="10">
+              <input type="number" inputmode="numeric" id="activity-reps-input" min="1" max="500" value="10">
               <p id="activity-reps-error" class="field-error" hidden></p>
             </div>
             <div class="form-group">
               <label for="activity-pace-input">Pace / Rep (s)</label>
-              <input type="number" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
+              <input type="number" inputmode="decimal" id="activity-pace-input" min="0.5" step="0.1" value="3.0">
               <p id="activity-pace-error" class="field-error" hidden></p>
             </div>
           </div>
           <div class="row">
             <div class="form-group">
               <label for="activity-sets-input">Sets</label>
-              <input type="number" id="activity-sets-input" min="1" max="5" value="1">
+              <input type="number" inputmode="numeric" id="activity-sets-input" min="1" max="5" value="1">
               <p id="activity-sets-error" class="field-error" hidden></p>
             </div>
             <div class="form-group">
-              <label for="activity-rest-between-sets-input">Rest Between Sets (s)</label>
-              <input type="number" id="activity-rest-between-sets-input" min="0" max="300" value="0">
+              <label id="activity-rest-between-sets-label">Rest Between Sets</label>
+              <div class="time-picker" role="group" aria-labelledby="activity-rest-between-sets-label">
+                <select id="activity-rest-between-sets-minutes" aria-label="Rest between sets minutes"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>
+                <span class="time-picker-sep">:</span>
+                <select id="activity-rest-between-sets-seconds" aria-label="Rest between sets seconds"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
+              </div>
+              <div class="time-picker-captions" aria-hidden="true">
+                <span>min</span>
+                <span class="time-picker-sep">:</span>
+                <span>sec</span>
+              </div>
               <p id="activity-rest-between-sets-error" class="field-error" hidden></p>
             </div>
           </div>
@@ -1382,8 +1426,35 @@
 
         <div id="duration-fields" class="hidden">
           <div class="form-group">
-            <label for="activity-duration-input" id="activity-duration-label">Duration (seconds)</label>
-            <input type="number" id="activity-duration-input" min="1" max="14400" value="60">
+            <label id="activity-duration-label">Duration</label>
+            <div id="duration-picker-long">
+            <div class="time-picker" role="group" aria-labelledby="activity-duration-label">
+              <select id="activity-duration-hours" aria-label="Duration hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>
+              <span class="time-picker-sep">:</span>
+              <select id="activity-duration-minutes-long" aria-label="Duration minutes"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
+              <span class="time-picker-sep">:</span>
+              <select id="activity-duration-seconds-long" aria-label="Duration seconds"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
+            </div>
+            <div class="time-picker-captions" aria-hidden="true">
+              <span>hr</span>
+              <span class="time-picker-sep">:</span>
+              <span>min</span>
+              <span class="time-picker-sep">:</span>
+              <span>sec</span>
+            </div>
+            </div>
+            <div id="duration-picker-short" class="hidden">
+            <div class="time-picker" role="group" aria-labelledby="activity-duration-label">
+              <select id="activity-duration-minutes-short" aria-label="Duration minutes"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>
+              <span class="time-picker-sep">:</span>
+              <select id="activity-duration-seconds-short" aria-label="Duration seconds"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
+            </div>
+            <div class="time-picker-captions" aria-hidden="true">
+              <span>min</span>
+              <span class="time-picker-sep">:</span>
+              <span>sec</span>
+            </div>
+            </div>
             <p id="activity-duration-error" class="field-error" hidden></p>
           </div>
         </div>
@@ -2298,8 +2369,11 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     // Marks which field failed and why, in place - Material's convention for
     // form errors - rather than relying on a snackbar elsewhere on screen
     // that doesn't point at the actual input.
+    // inputEl is null for a grouped field (e.g. the h:mm:ss duration
+    // pickers) where no single control is "wrong" - it's the combination -
+    // so only the shared message shows, with no per-control red border.
     function setFieldError(inputEl, errorId, message) {
-      inputEl.classList.add('input-error');
+      if (inputEl) inputEl.classList.add('input-error');
       const errorEl = document.getElementById(errorId);
       if (errorEl) {
         errorEl.textContent = message;
@@ -2308,7 +2382,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
     }
 
     function clearFieldError(inputEl, errorId) {
-      inputEl.classList.remove('input-error');
+      if (inputEl) inputEl.classList.remove('input-error');
       const errorEl = document.getElementById(errorId);
       if (errorEl) {
         errorEl.hidden = true;
@@ -2619,8 +2693,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       activityRepsInput: document.getElementById('activity-reps-input'),
       activityPaceInput: document.getElementById('activity-pace-input'),
       activitySetsInput: document.getElementById('activity-sets-input'),
-      activityRestBetweenSetsInput: document.getElementById('activity-rest-between-sets-input'),
-      activityDurationInput: document.getElementById('activity-duration-input'),
+      activityRestBetweenSetsMinutes: document.getElementById('activity-rest-between-sets-minutes'),
+      activityRestBetweenSetsSeconds: document.getElementById('activity-rest-between-sets-seconds'),
+      activityDurationHours: document.getElementById('activity-duration-hours'),
+      activityDurationMinutesLong: document.getElementById('activity-duration-minutes-long'),
+      activityDurationSecondsLong: document.getElementById('activity-duration-seconds-long'),
+      activityDurationMinutesShort: document.getElementById('activity-duration-minutes-short'),
+      activityDurationSecondsShort: document.getElementById('activity-duration-seconds-short'),
+      durationPickerLong: document.getElementById('duration-picker-long'),
+      durationPickerShort: document.getElementById('duration-picker-short'),
       activityInstructionsInput: document.getElementById('activity-instructions-input'),
       repsFields: document.getElementById('reps-fields'),
       durationFields: document.getElementById('duration-fields'),
@@ -2727,8 +2808,17 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.updateFavoriteToggleUI();
         });
 
-        [this.activityTitleInput, this.activityRepsInput, this.activityPaceInput, this.activitySetsInput, this.activityRestBetweenSetsInput, this.activityDurationInput, this.activityInstructionsInput].forEach((input) => {
+        const activityTimePickerSelects = [
+          this.activityRestBetweenSetsMinutes, this.activityRestBetweenSetsSeconds,
+          this.activityDurationHours, this.activityDurationMinutesLong, this.activityDurationSecondsLong,
+          this.activityDurationMinutesShort, this.activityDurationSecondsShort
+        ];
+
+        [this.activityTitleInput, this.activityRepsInput, this.activityPaceInput, this.activitySetsInput, this.activityInstructionsInput].forEach((input) => {
           input.addEventListener('input', () => this.refreshFavoriteMatchState());
+        });
+        activityTimePickerSelects.forEach((select) => {
+          select.addEventListener('change', () => this.refreshFavoriteMatchState());
         });
         this.activityTypeSelect.addEventListener('change', () => this.refreshFavoriteMatchState());
 
@@ -2737,11 +2827,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           [this.activityRepsInput, 'activity-reps-error'],
           [this.activityPaceInput, 'activity-pace-error'],
           [this.activitySetsInput, 'activity-sets-error'],
-          [this.activityRestBetweenSetsInput, 'activity-rest-between-sets-error'],
-          [this.activityDurationInput, 'activity-duration-error'],
           [this.activityInstructionsInput, 'activity-instructions-error']
         ].forEach(([input, errorId]) => {
           input.addEventListener('input', () => clearFieldError(input, errorId));
+        });
+        [this.activityRestBetweenSetsMinutes, this.activityRestBetweenSetsSeconds].forEach((select) => {
+          select.addEventListener('change', () => clearFieldError(null, 'activity-rest-between-sets-error'));
+        });
+        [this.activityDurationHours, this.activityDurationMinutesLong, this.activityDurationSecondsLong, this.activityDurationMinutesShort, this.activityDurationSecondsShort].forEach((select) => {
+          select.addEventListener('change', () => clearFieldError(null, 'activity-duration-error'));
         });
 
         // Player UI Actions
@@ -3121,9 +3215,9 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
               this.activityRepsInput.value = activity.reps;
               this.activityPaceInput.value = activity.pace;
               this.activitySetsInput.value = activity.sets || 1;
-              this.activityRestBetweenSetsInput.value = activity.restBetweenSets || 0;
+              this.setRestBetweenSetsSeconds(activity.restBetweenSets || 0);
             } else {
-              this.activityDurationInput.value = activity.duration;
+              this.setDurationSeconds(activity.duration, type);
               this.activityInstructionsInput.value = activity.instructions || '';
             }
           }
@@ -3133,8 +3227,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           this.activityRepsInput.value = 10;
           this.activityPaceInput.value = 3.0;
           this.activitySetsInput.value = 1;
-          this.activityRestBetweenSetsInput.value = 0;
-          this.activityDurationInput.value = 60;
+          this.setRestBetweenSetsSeconds(0);
+          this.setDurationSeconds(60, type);
           this.activityInstructionsInput.value = '';
         }
 
@@ -3145,8 +3239,8 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           [this.activityRepsInput, 'activity-reps-error'],
           [this.activityPaceInput, 'activity-pace-error'],
           [this.activitySetsInput, 'activity-sets-error'],
-          [this.activityRestBetweenSetsInput, 'activity-rest-between-sets-error'],
-          [this.activityDurationInput, 'activity-duration-error'],
+          [null, 'activity-rest-between-sets-error'],
+          [null, 'activity-duration-error'],
           [this.activityInstructionsInput, 'activity-instructions-error']
         ].forEach(([input, errorId]) => clearFieldError(input, errorId));
 
@@ -3164,14 +3258,15 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
       },
 
       readActivityFormValues() {
+        const type = this.activityTypeSelect.value;
         return {
-          type: this.activityTypeSelect.value,
+          type,
           title: this.activityTitleInput.value,
           reps: this.activityRepsInput.value,
           pace: this.activityPaceInput.value,
           sets: this.activitySetsInput.value,
-          restBetweenSets: this.activityRestBetweenSetsInput.value,
-          duration: this.activityDurationInput.value,
+          restBetweenSets: this.getRestBetweenSetsSeconds(),
+          duration: this.getDurationSeconds(type),
           instructions: this.activityInstructionsInput.value
         };
       },
@@ -3188,13 +3283,13 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
             reps: this.activityRepsInput.value,
             pace: this.activityPaceInput.value,
             sets: this.activitySetsInput.value,
-            restBetweenSets: this.activityRestBetweenSetsInput.value
+            restBetweenSets: this.getRestBetweenSetsSeconds()
           };
         }
         if (type === 'instructions') {
-          return { type, title, duration: this.activityDurationInput.value, instructions: this.activityInstructionsInput.value };
+          return { type, title, duration: this.getDurationSeconds(type), instructions: this.activityInstructionsInput.value };
         }
-        return { type, title, duration: this.activityDurationInput.value };
+        return { type, title, duration: this.getDurationSeconds(type) };
       },
 
       // Re-checks whether the current form now matches a saved favorite,
@@ -3238,23 +3333,72 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
         }
       },
 
+      // Reads/writes the h:mm:ss or mm:ss <select> group for a given
+      // Duration as a single total-seconds number, so the rest of the code
+      // (validation, dirty-checking, Favorites matching, saving) can keep
+      // treating "duration" as one scalar exactly like it always did.
+      getDurationSeconds(type) {
+        if (type === 'exercise-timer') {
+          const h = parseInt(this.activityDurationHours.value, 10) || 0;
+          const m = parseInt(this.activityDurationMinutesLong.value, 10) || 0;
+          const s = parseInt(this.activityDurationSecondsLong.value, 10) || 0;
+          return h * 3600 + m * 60 + s;
+        }
+        const m = parseInt(this.activityDurationMinutesShort.value, 10) || 0;
+        const s = parseInt(this.activityDurationSecondsShort.value, 10) || 0;
+        return m * 60 + s;
+      },
+
+      setDurationSeconds(totalSeconds, type) {
+        // Clamped to the type's current max so a value that was valid
+        // before a cap was tightened (e.g. an old 10-minute Rest, from
+        // when Rest shared Exercise Timer's much higher limit) still
+        // decomposes into a selectable combination instead of a blank,
+        // invalid dropdown - Save will then correctly show the clamped
+        // value rather than silently reading back as 0.
+        const maxForType = type === 'exercise-timer' ? 18000 : 300;
+        const total = Math.min(maxForType, Math.max(0, parseInt(totalSeconds, 10) || 0));
+        if (type === 'exercise-timer') {
+          this.activityDurationHours.value = Math.floor(total / 3600);
+          this.activityDurationMinutesLong.value = Math.floor((total % 3600) / 60);
+          this.activityDurationSecondsLong.value = total % 60;
+        } else {
+          this.activityDurationMinutesShort.value = Math.floor(total / 60);
+          this.activityDurationSecondsShort.value = total % 60;
+        }
+      },
+
+      getRestBetweenSetsSeconds() {
+        const m = parseInt(this.activityRestBetweenSetsMinutes.value, 10) || 0;
+        const s = parseInt(this.activityRestBetweenSetsSeconds.value, 10) || 0;
+        return m * 60 + s;
+      },
+
+      setRestBetweenSetsSeconds(totalSeconds) {
+        const total = Math.min(300, Math.max(0, parseInt(totalSeconds, 10) || 0));
+        this.activityRestBetweenSetsMinutes.value = Math.floor(total / 60);
+        this.activityRestBetweenSetsSeconds.value = total % 60;
+      },
+
       toggleActivityModalFields(type) {
         this.repsFields.classList.toggle('hidden', type !== 'reps');
         this.durationFields.classList.toggle('hidden', type === 'reps');
         this.instructionsFields.classList.toggle('hidden', type !== 'instructions');
+        this.durationPickerLong.classList.toggle('hidden', type !== 'exercise-timer');
+        this.durationPickerShort.classList.toggle('hidden', type === 'exercise-timer');
 
         const durationLabel = document.getElementById('activity-duration-label');
         if (type === 'reps') {
           this.activityTitleInput.placeholder = 'e.g., Push-ups';
         } else if (type === 'exercise-timer') {
           this.activityTitleInput.placeholder = 'e.g., Plank Hold';
-          durationLabel.textContent = 'Exercise Duration (seconds)';
+          durationLabel.textContent = 'Exercise Duration';
         } else if (type === 'instructions') {
           this.activityTitleInput.placeholder = 'e.g., Get Ready';
-          durationLabel.textContent = 'Duration (seconds)';
+          durationLabel.textContent = 'Duration';
         } else {
           this.activityTitleInput.placeholder = 'e.g., Rest';
-          durationLabel.textContent = 'Rest Duration (seconds)';
+          durationLabel.textContent = 'Rest Duration';
         }
       },
 
@@ -3305,7 +3449,7 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           const reps = parseInt(this.activityRepsInput.value, 10);
           const pace = parseFloat(this.activityPaceInput.value);
           const sets = parseInt(this.activitySetsInput.value, 10);
-          const restBetweenSets = parseInt(this.activityRestBetweenSetsInput.value, 10);
+          const restBetweenSets = this.getRestBetweenSetsSeconds();
 
           if (!(reps >= 1 && reps <= 500)) {
             setFieldError(this.activityRepsInput, 'activity-reps-error', 'Total Reps must be between 1 and 500.');
@@ -3323,22 +3467,24 @@ Return ONLY the JSON (no surrounding commentary or markdown fences) so it can be
           }
           clearFieldError(this.activitySetsInput, 'activity-sets-error');
           if (!(restBetweenSets >= 0 && restBetweenSets <= 300)) {
-            setFieldError(this.activityRestBetweenSetsInput, 'activity-rest-between-sets-error', 'Rest Between Sets must be between 0 and 300 seconds.');
+            setFieldError(null, 'activity-rest-between-sets-error', 'Rest Between Sets must be between 0 and 5 minutes.');
             return;
           }
-          clearFieldError(this.activityRestBetweenSetsInput, 'activity-rest-between-sets-error');
+          clearFieldError(null, 'activity-rest-between-sets-error');
 
           activityData.reps = reps;
           activityData.pace = Math.max(0.5, pace || 1.0);
           activityData.sets = sets;
           activityData.restBetweenSets = restBetweenSets;
         } else {
-          const duration = parseInt(this.activityDurationInput.value, 10);
-          if (!(duration >= 1 && duration <= 14400)) {
-            setFieldError(this.activityDurationInput, 'activity-duration-error', 'Duration must be between 1 and 14400 seconds.');
+          const duration = this.getDurationSeconds(type);
+          const maxDuration = type === 'exercise-timer' ? 18000 : 300;
+          const maxDurationLabel = type === 'exercise-timer' ? '5 hours' : '5 minutes';
+          if (!(duration >= 1 && duration <= maxDuration)) {
+            setFieldError(null, 'activity-duration-error', `Duration must be between 1 second and ${maxDurationLabel}.`);
             return;
           }
-          clearFieldError(this.activityDurationInput, 'activity-duration-error');
+          clearFieldError(null, 'activity-duration-error');
           activityData.duration = duration;
 
           if (type === 'instructions') {
